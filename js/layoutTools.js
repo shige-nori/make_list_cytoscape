@@ -35,6 +35,11 @@ class LayoutTools {
             this.openPanel();
         });
 
+        // Hierarchical > Equal
+        document.getElementById('menu-hierarchical-equal').addEventListener('click', () => {
+            this.equalizeLayout();
+        });
+
         // パネルを閉じる
         document.getElementById('layout-tools-close').addEventListener('click', () => {
             this.closePanel();
@@ -266,6 +271,61 @@ class LayoutTools {
     applyCurrentTransform() {
         this.storeOriginalPositions();
         this.resetSliders();
+    }
+
+    /**
+     * Equalizeレイアウト - ネットワーク図を縦横同じ比率に自動調整
+     * 現在のレイアウトのアスペクト比を1:1に調整する
+     */
+    equalizeLayout() {
+        if (!networkManager.cy) return;
+
+        const nodes = networkManager.cy.nodes();
+        if (nodes.length === 0) return;
+
+        // 現在のバウンディングボックスを取得
+        const bb = nodes.boundingBox();
+        const width = bb.x2 - bb.x1;
+        const height = bb.y2 - bb.y1;
+
+        // 幅または高さが0の場合は処理しない
+        if (width === 0 || height === 0) return;
+
+        // 中心座標を計算
+        const centerX = (bb.x1 + bb.x2) / 2;
+        const centerY = (bb.y1 + bb.y2) / 2;
+
+        // アスペクト比を1:1にするためのスケール係数を計算
+        // 大きい方の辺を基準に、小さい方を拡大する
+        let scaleX = 1;
+        let scaleY = 1;
+
+        if (width > height) {
+            // 横長の場合：縦を拡大
+            scaleY = width / height;
+        } else if (height > width) {
+            // 縦長の場合：横を拡大
+            scaleX = height / width;
+        }
+        // 正方形の場合は何もしない（scaleX = scaleY = 1）
+
+        // 各ノードの位置を調整
+        nodes.forEach(node => {
+            const pos = node.position();
+            
+            // 中心からの相対位置を計算
+            const dx = pos.x - centerX;
+            const dy = pos.y - centerY;
+
+            // スケールを適用して新しい位置を計算
+            const newX = centerX + dx * scaleX;
+            const newY = centerY + dy * scaleY;
+
+            node.position({ x: newX, y: newY });
+        });
+
+        // ビューをフィットさせる
+        networkManager.cy.fit(nodes, 50);
     }
 }
 
