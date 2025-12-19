@@ -33,12 +33,17 @@ project/
   - Import
     - Network File... （エッジデータのインポート）
     - Table File... （ノードデータのインポート）
+  - Open （.cynetファイルを開く）
+  - Save （現在のネットワーク状態を上書き保存）
+  - Save As （任意のファイル名で保存）
+  - Close （ネットワーク図をクリア）
 - **Style** （将来拡張用）
 - **Filter** （将来拡張用）
 - **Layout**
   - Layout Tools （レイアウトツールパネルを開く）
   - ─────────── （区切り線）
   - Hierarchical （サブメニュー展開）
+    - Defaults （初期Dagreレイアウトを再適用）
     - Equal （ノード配置の均等化）
 
 サブメニューは親メニューの右側に表示。
@@ -205,3 +210,28 @@ applyTransform() {
     background-color: var(--border-color);
 }
 ```
+
+## 追加仕様・拡張内容（2025/12/19時点）
+
+### ファイル操作・メニュー
+- Fileメニューに「Open」「Save」「Save As」「Close」を追加。
+    - Open: .cynetファイルを開く
+    - Save: 現在のネットワーク状態を上書き保存（初回はSave Asと同じ）
+    - Save As: 任意のファイル名で保存
+    - Close: ネットワーク図をクリア（ネットワークが存在する場合のみ有効）
+- メニューの有効/無効状態はネットワークの有無や操作状況に応じて自動で切り替わる。
+- 破壊的操作（再読込/新規読込/Close等）はカスタムモーダルで確認ダイアログを表示。
+- メニューの無効時は明確にグレーアウトし、クリック不可。
+- ファイル操作はFile System Access API対応（未対応ブラウザはダウンロード/アップロードで代替）。
+
+### レイアウト・属性インポート
+- Table File（ノード属性）を後から読み込んでも、現在のノード位置（レイアウト）を維持する。
+- Network File読込後にレイアウトを変更しても、Table Fileインポートで初期レイアウトに戻らない。
+
+### Hierarchicalメニュー
+- Layout > Hierarchicalサブメニューに「Defaults」「Equal」を順に表示。
+    - Defaults: 初期Dagreレイアウト（階層型）を再適用
+    - Equal: ノードを階層ごとに均等配置（Equal機能）
+
+### その他
+- すべての新機能・UI仕様はREADME.mdにも明記し、ユーザー向け説明を最新化している。
