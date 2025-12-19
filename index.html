@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Visualizer - Cytoscape.js</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Cytoscape.js -->
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <!-- Dagre for hierarchical layout -->
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <!-- SheetJS for Excel file reading -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- メニューバー -->
+    <nav class="menubar">
+        <ul class="menu">
+            <li class="menu-item">
+                <span class="menu-title">File</span>
+                <ul class="submenu">
+                    <li class="submenu-item has-submenu">
+                        <span>Import</span>
+                        <ul class="submenu-nested">
+                            <li class="submenu-item" id="menu-network-file">Network File</li>
+                            <li class="submenu-item" id="menu-table-file">Table File</li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <span class="menu-title">Style</span>
+                <ul class="submenu">
+                    <li class="submenu-item disabled">Coming soon...</li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <span class="menu-title">Filter</span>
+                <ul class="submenu">
+                    <li class="submenu-item disabled">Coming soon...</li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <span class="menu-title">Layout</span>
+                <ul class="submenu">
+                    <li class="submenu-item" id="menu-layout-tools">Layout Tools</li>
+                </ul>
+            </li>
+        </ul>
+        <div class="app-title">Network Visualizer</div>
+    </nav>
+
+    <!-- ネットワーク表示領域 -->
+    <div id="cy"></div>
+
+    <!-- 隠しファイル入力 -->
+    <input type="file" id="network-file-input" accept=".csv,.xlsx,.xls" style="display:none;">
+    <input type="file" id="table-file-input" accept=".csv,.xlsx,.xls" style="display:none;">
+
+    <!-- カラム設定モーダル（Network File用） -->
+    <div id="network-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Network File Settings</h2>
+                <span class="modal-close" id="network-modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="file-info">
+                    <span id="network-file-name"></span>
+                </div>
+                <div class="column-settings">
+                    <h3>Column Settings</h3>
+                    <div class="column-settings-wrapper">
+                        <table id="network-column-settings" class="column-settings-table"></table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="loading-message" id="network-loading-message">Importing data...</div>
+                <button class="btn btn-secondary" id="network-cancel">Cancel</button>
+                <button class="btn btn-primary" id="network-import">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- カラム設定モーダル（Table File用） -->
+    <div id="table-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Table File Settings</h2>
+                <span class="modal-close" id="table-modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="file-info">
+                    <span id="table-file-name"></span>
+                </div>
+                <div class="column-settings">
+                    <h3>Column Settings</h3>
+                    <div class="column-settings-wrapper">
+                        <table id="table-column-settings" class="column-settings-table"></table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="loading-message" id="table-loading-message">Importing data...</div>
+                <button class="btn btn-secondary" id="table-cancel">Cancel</button>
+                <button class="btn btn-primary" id="table-import">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Tools ウィンドウ -->
+    <div id="layout-tools-panel" class="tools-panel">
+        <div class="tools-panel-header">
+            <h3>Layout Tools</h3>
+            <span class="tools-panel-close" id="layout-tools-close">&times;</span>
+        </div>
+        <div class="tools-panel-body">
+            <!-- Scale セクション -->
+            <div class="tool-section">
+                <div class="tool-section-header">
+                    <span class="tool-section-title">Scale</span>
+                </div>
+                <div class="tool-section-body">
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="scale-axis" id="scale-width" value="width" checked>
+                            <span>Width</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="scale-axis" id="scale-height" value="height">
+                            <span>Height</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="scale-axis" id="scale-selected-only" value="selected">
+                            <span>Selected Only</span>
+                        </label>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="scale-slider" class="slider" min="-3" max="3" step="0.01" value="0">
+                        <div class="slider-ticks" data-ticks="7">
+                            <div class="tick"><div class="tick-line"></div><span>1/8</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>1/4</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>1/2</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>1</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>2</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>4</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>8</span></div>
+                        </div>
+                    </div>
+                    <div class="slider-value">Scale: <span id="scale-value">1.00</span>x</div>
+                </div>
+            </div>
+
+            <!-- Rotate セクション -->
+            <div class="tool-section">
+                <div class="tool-section-header">
+                    <span class="tool-section-title">Rotate</span>
+                </div>
+                <div class="tool-section-body">
+                    <div class="slider-container">
+                        <input type="range" id="rotate-slider" class="slider" min="-180" max="180" step="1" value="0">
+                        <div class="slider-ticks" data-ticks="5">
+                            <div class="tick"><div class="tick-line"></div><span>-180°</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>-90°</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>0°</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>90°</span></div>
+                            <div class="tick"><div class="tick-line"></div><span>180°</span></div>
+                        </div>
+                    </div>
+                    <div class="slider-value">Angle: <span id="rotate-value">0</span>°</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/fileHandler.js"></script>
+    <script src="js/networkManager.js"></script>
+    <script src="js/layoutTools.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

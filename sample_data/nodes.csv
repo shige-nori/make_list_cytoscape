@@ -1,0 +1,7 @@
+node,label,category,score
+A,Node A,input,85
+B,Node B,process,72
+C,Node C,process,68
+D,Node D,process,90
+E,Node E,output,55
+F,Node F,output,78

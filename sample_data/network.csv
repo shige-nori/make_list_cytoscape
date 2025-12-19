@@ -1,0 +1,9 @@
+source,target,weight,type
+A,B,1.5,activation
+A,C,2.0,inhibition
+B,D,1.0,activation
+C,D,0.8,activation
+D,E,1.2,inhibition
+B,E,0.5,activation
+C,F,1.8,activation
+E,F,2.5,inhibition
