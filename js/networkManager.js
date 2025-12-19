@@ -174,6 +174,14 @@ class NetworkManager {
         const nodeCol = columnSettings.node;
         const attributes = columnSettings.attributes;
 
+        // 既存ノード位置を保存
+        const nodePositions = new Map();
+        if (this.cy) {
+            this.cy.nodes().forEach(node => {
+                nodePositions.set(node.id(), { x: node.position('x'), y: node.position('y') });
+            });
+        }
+
         data.forEach(row => {
             const nodeId = row[nodeCol.index];
             if (!nodeId) return;
@@ -181,35 +189,31 @@ class NetworkManager {
             // ノードが存在する場合のみ属性を追加
             if (this.nodes.has(nodeId)) {
                 const nodeData = this.nodes.get(nodeId);
-                
                 attributes.forEach(attr => {
                     const value = row[attr.index];
                     const converted = fileHandler.convertValue(value, attr.dataType, attr.delimiter);
                     nodeData[attr.name] = converted;
                 });
-
                 this.nodes.set(nodeId, nodeData);
             } else {
                 // ノードが存在しない場合は新規作成
                 const nodeData = { id: nodeId, label: nodeId };
-                
                 attributes.forEach(attr => {
                     const value = row[attr.index];
                     const converted = fileHandler.convertValue(value, attr.dataType, attr.delimiter);
                     nodeData[attr.name] = converted;
                 });
-
                 this.nodes.set(nodeId, nodeData);
             }
         });
 
-        this.updateCytoscape();
+        this.updateCytoscape(nodePositions);
     }
 
     /**
      * Cytoscapeを更新
      */
-    updateCytoscape() {
+    updateCytoscape(nodePositions) {
         this.hideEmptyState();
 
         // 要素を構築
@@ -217,9 +221,14 @@ class NetworkManager {
 
         // ノード
         this.nodes.forEach((data, id) => {
-            elements.push({
+            const ele = {
                 data: { ...data, id: id, label: data.label || id }
-            });
+            };
+            // 位置情報があれば付与
+            if (nodePositions && nodePositions.has(id)) {
+                ele.position = { ...nodePositions.get(id) };
+            }
+            elements.push(ele);
         });
 
         // エッジ
@@ -233,8 +242,10 @@ class NetworkManager {
         this.cy.elements().remove();
         this.cy.add(elements);
 
-        // レイアウトを適用
-        this.applyLayout('dagre');
+        // Table Fileインポート時はレイアウトを再適用しない（位置維持）
+        if (!nodePositions) {
+            this.applyLayout('dagre');
+        }
     }
 
     /**
