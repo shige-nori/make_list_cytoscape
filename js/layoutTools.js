@@ -39,6 +39,12 @@ class LayoutTools {
         document.getElementById('menu-hierarchical-equal').addEventListener('click', () => {
             this.equalizeLayout();
         });
+        // Hierarchical > Defaults
+        document.getElementById('menu-hierarchical-defaults').addEventListener('click', () => {
+            if (networkManager && networkManager.cy) {
+                networkManager.applyLayout('dagre');
+            }
+        });
 
         // パネルを閉じる
         document.getElementById('layout-tools-close').addEventListener('click', () => {
