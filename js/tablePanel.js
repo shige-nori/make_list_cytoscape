@@ -1384,23 +1384,30 @@ class TablePanel {
     }
 
     /**
-     * 折りたたみを切り替え
+     * 折りたたみを切り替え（ヘッダー行を残してパネルを折りたたむ）
      */
     toggleCollapse() {
-        this.panel.classList.toggle('collapsed');
+        const isCollapsed = this.panel.classList.toggle('collapsed');
         const btn = document.getElementById('table-collapse-btn');
-        if (this.panel.classList.contains('collapsed')) {
+        
+        if (isCollapsed) {
+            // 折りたたみ時：ヘッダー行（36px）だけ残す
+            this.panel.style.height = '36px';
             btn.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="18 15 12 9 6 15"></polyline>
                 </svg>
             `;
+            btn.title = '展開する';
         } else {
+            // 展開時：元の高さに戻す
+            this.panel.style.height = this.panelHeight + 'px';
             btn.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
             `;
+            btn.title = '折りたたむ';
         }
         this.updateCyHeight();
     }
@@ -1500,10 +1507,11 @@ class TablePanel {
      */
     updateCyHeight() {
         const cy = document.getElementById('cy');
-        if (this.panel.classList.contains('active') && !this.panel.classList.contains('collapsed')) {
+        if (this.panel.classList.contains('collapsed')) {
+            // 折りたたみ時はヘッダー行の高さ分だけ確保
+            cy.style.bottom = '36px';
+        } else if (this.panel.classList.contains('active')) {
             cy.style.bottom = this.panelHeight + 'px';
-        } else if (this.panel.classList.contains('collapsed')) {
-            cy.style.bottom = '40px';
         } else {
             cy.style.bottom = '0';
         }
