@@ -54,15 +54,20 @@ class NetworkManager {
                     'border-width': 3,
                     'border-color': '#1d4ed8',
                     'text-wrap': 'wrap',
-                    'text-max-width': '100px'
+                    'text-max-width': '100px',
+                    'overlay-opacity': 0,
+                    'overlay-shape': 'ellipse'
                 }
             },
             {
                 selector: 'node:selected',
                 style: {
-                    'background-color': '#f59e0b',
-                    'border-color': '#d97706',
-                    'border-width': 4
+                    'background-color': '#fed7aa',
+                    'border-color': '#ea580c',
+                    'border-width': 3,
+                    'overlay-color': '#f97316',
+                    'overlay-padding': 8,
+                    'overlay-opacity': 0.4
                 }
             },
             {
@@ -73,15 +78,37 @@ class NetworkManager {
                     'target-arrow-color': '#64748b',
                     'target-arrow-shape': 'triangle',
                     'curve-style': 'bezier',
-                    'arrow-scale': 1.2
+                    'arrow-scale': 1.2,
+                    'overlay-opacity': 0
                 }
             },
             {
                 selector: 'edge:selected',
                 style: {
-                    'width': 3,
-                    'line-color': '#f59e0b',
-                    'target-arrow-color': '#d97706'
+                    'line-color': '#ea580c',
+                    'target-arrow-color': '#c2410c',
+                    'overlay-color': '#f97316',
+                    'overlay-padding': 2,
+                    'overlay-opacity': 0.5
+                }
+            },
+            // テーブルからのハイライト（ノード）
+            {
+                selector: 'node.table-highlighted, node.filtered-in',
+                style: {
+                    'overlay-color': '#f97316',
+                    'overlay-padding': 10,
+                    'overlay-opacity': 0.4
+                }
+            },
+            // テーブルからのハイライト（エッジ）- エッジの太さに連動（tablePanel.jsで動的に設定）
+            {
+                selector: 'edge.table-highlighted, edge.filtered-in',
+                style: {
+                    'line-color': '#ea580c',
+                    'target-arrow-color': '#c2410c',
+                    'overlay-color': '#f97316',
+                    'overlay-opacity': 0.5
                 }
             }
         ];
@@ -450,11 +477,44 @@ class NetworkManager {
             // 既存データをクリア
             this.clear();
 
-            // データを復元
-            this.nodes = new Map(data.nodes || []);
-            this.edges = data.edges || [];
-            this.nodeAttributes = new Map(data.nodeAttributes || []);
-            this.edgeAttributes = data.edgeAttributes || [];
+            // 古い形式の配列データを変換するヘルパー関数
+            const convertLegacyArrays = (obj) => {
+                if (obj === null || obj === undefined) return obj;
+                if (Array.isArray(obj)) {
+                    // 配列の各要素をチェック
+                    // もし1要素の配列で、その要素が「| 」を含む文字列なら分割
+                    if (obj.length === 1 && typeof obj[0] === 'string' && obj[0].includes('| ')) {
+                        return obj[0].split('| ').map(s => s.trim()).filter(s => s !== '');
+                    }
+                    return obj.map(item => convertLegacyArrays(item));
+                }
+                if (typeof obj === 'object') {
+                    const converted = {};
+                    for (const key in obj) {
+                        converted[key] = convertLegacyArrays(obj[key]);
+                    }
+                    return converted;
+                }
+                return obj;
+            };
+
+            // ノードデータを変換して復元
+            const convertedNodes = (data.nodes || []).map(([id, nodeData]) => {
+                return [id, convertLegacyArrays(nodeData)];
+            });
+            this.nodes = new Map(convertedNodes);
+
+            // エッジデータを変換して復元
+            this.edges = (data.edges || []).map(edge => convertLegacyArrays(edge));
+
+            // ノード属性を変換して復元
+            const convertedNodeAttrs = (data.nodeAttributes || []).map(([id, attrs]) => {
+                return [id, convertLegacyArrays(attrs)];
+            });
+            this.nodeAttributes = new Map(convertedNodeAttrs);
+
+            // エッジ属性を変換して復元
+            this.edgeAttributes = (data.edgeAttributes || []).map(attr => convertLegacyArrays(attr));
 
             // Cytoscape要素を復元
             if (data.cytoscapeElements && data.cytoscapeElements.length > 0) {

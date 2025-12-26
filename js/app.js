@@ -48,6 +48,16 @@ class App {
      * @returns {string} - データ型
      */
     detectColumnDataType(data, columnIndex) {
+        // 「| 」区切りのデータがあれば配列型として検出
+        const hasArrayDelimiter = data.some(row => {
+            const value = row[columnIndex];
+            return value && typeof value === 'string' && value.includes('| ');
+        });
+        
+        if (hasArrayDelimiter) {
+            return 'string[]';
+        }
+        
         if (this.isColumnAllIntegers(data, columnIndex)) {
             return 'number';
         }
@@ -85,6 +95,13 @@ class App {
             StylePanel.show('edge');
         });
 
+        // メニュー: View - Table Panel
+        document.getElementById('menu-view-table').addEventListener('click', () => {
+            if (window.tablePanel) {
+                tablePanel.toggle();
+            }
+        });
+
                 // メニュー: Close
                 document.getElementById('menu-close').addEventListener('click', (e) => {
                     const menuItem = document.getElementById('menu-close');
@@ -103,6 +120,10 @@ class App {
                         document.getElementById('menu-save-as').classList.add('disabled');
                         document.getElementById('menu-table-file').classList.add('disabled');
                         document.getElementById('menu-close').classList.add('disabled');
+                        // テーブルパネルを非表示
+                        if (window.tablePanel) {
+                            tablePanel.hide();
+                        }
                     }
                 });
         // メニュー: Network File
@@ -373,6 +394,9 @@ class App {
             const isAttribute = defaultRole === 'attribute';
             const detectedType = isAttribute ? this.detectColumnDataType(data, index) : 'string';
             
+            const isArrayType = detectedType.endsWith('[]');
+            const showDelimiter = isAttribute && isArrayType;
+            
             html += `
                 <tr data-index="${index}">
                     <td class="column-name" title="${this.escapeHtml(header)}">${this.escapeHtml(header)}</td>
@@ -389,8 +413,8 @@ class App {
                             ${this.dataTypes.map(dt => `<option value="${dt.value}" ${dt.value === detectedType ? 'selected' : ''}>${dt.label}</option>`).join('')}
                         </select>
                     </td>
-                    <td class="delimiter-cell ${!isAttribute ? 'hidden-cell' : ''}">
-                        <input type="text" class="delimiter-input" data-index="${index}" value="," placeholder=",">
+                    <td class="delimiter-cell ${!showDelimiter ? 'hidden-cell' : ''}">
+                        <input type="text" class="delimiter-input" data-index="${index}" value="|" placeholder="|">
                     </td>
                 </tr>
             `;
@@ -405,6 +429,30 @@ class App {
                 this.handleNetworkRoleChange(e.target);
             });
         });
+
+        // Data Type変更時のイベント
+        table.querySelectorAll('.datatype-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                this.handleDataTypeChange(e.target);
+            });
+        });
+    }
+
+    /**
+     * Data Type変更ハンドラ（配列型のときのみDelimiterを表示）
+     * @param {HTMLSelectElement} select 
+     */
+    handleDataTypeChange(select) {
+        const dataType = select.value;
+        const row = select.closest('tr');
+        const delimiterCell = row.querySelector('.delimiter-cell');
+        const isArrayType = dataType.endsWith('[]');
+
+        if (isArrayType) {
+            delimiterCell.classList.remove('hidden-cell');
+        } else {
+            delimiterCell.classList.add('hidden-cell');
+        }
     }
 
     /**
@@ -416,10 +464,17 @@ class App {
         const row = select.closest('tr');
         const dataTypeCell = row.querySelector('.datatype-cell');
         const delimiterCell = row.querySelector('.delimiter-cell');
+        const dataTypeSelect = row.querySelector('.datatype-select');
+        const isArrayType = dataTypeSelect.value.endsWith('[]');
 
         if (role === 'attribute') {
             dataTypeCell.classList.remove('hidden-cell');
-            delimiterCell.classList.remove('hidden-cell');
+            // 配列型のときのみDelimiterを表示
+            if (isArrayType) {
+                delimiterCell.classList.remove('hidden-cell');
+            } else {
+                delimiterCell.classList.add('hidden-cell');
+            }
         } else {
             dataTypeCell.classList.add('hidden-cell');
             delimiterCell.classList.add('hidden-cell');
@@ -462,6 +517,9 @@ class App {
             const isAttribute = defaultRole === 'attribute';
             const detectedType = isAttribute ? this.detectColumnDataType(data, index) : 'string';
             
+            const isArrayType = detectedType.endsWith('[]');
+            const showDelimiter = isAttribute && isArrayType;
+            
             html += `
                 <tr data-index="${index}">
                     <td class="column-name" title="${this.escapeHtml(header)}">${this.escapeHtml(header)}</td>
@@ -477,8 +535,8 @@ class App {
                             ${this.dataTypes.map(dt => `<option value="${dt.value}" ${dt.value === detectedType ? 'selected' : ''}>${dt.label}</option>`).join('')}
                         </select>
                     </td>
-                    <td class="delimiter-cell ${!isAttribute ? 'hidden-cell' : ''}">
-                        <input type="text" class="delimiter-input" data-index="${index}" value="," placeholder=",">
+                    <td class="delimiter-cell ${!showDelimiter ? 'hidden-cell' : ''}">
+                        <input type="text" class="delimiter-input" data-index="${index}" value="|" placeholder="|">
                     </td>
                 </tr>
             `;
@@ -493,6 +551,13 @@ class App {
                 this.handleTableRoleChange(e.target);
             });
         });
+
+        // Data Type変更時のイベント
+        table.querySelectorAll('.datatype-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                this.handleDataTypeChange(e.target);
+            });
+        });
     }
 
     /**
@@ -504,10 +569,17 @@ class App {
         const row = select.closest('tr');
         const dataTypeCell = row.querySelector('.datatype-cell');
         const delimiterCell = row.querySelector('.delimiter-cell');
+        const dataTypeSelect = row.querySelector('.datatype-select');
+        const isArrayType = dataTypeSelect.value.endsWith('[]');
 
         if (role === 'attribute') {
             dataTypeCell.classList.remove('hidden-cell');
-            delimiterCell.classList.remove('hidden-cell');
+            // 配列型のときのみDelimiterを表示
+            if (isArrayType) {
+                delimiterCell.classList.remove('hidden-cell');
+            } else {
+                delimiterCell.classList.add('hidden-cell');
+            }
         } else {
             dataTypeCell.classList.add('hidden-cell');
             delimiterCell.classList.add('hidden-cell');
@@ -541,7 +613,7 @@ class App {
             const index = parseInt(row.dataset.index);
             const role = row.querySelector('.role-select').value;
             const dataType = row.querySelector('.datatype-select').value;
-            const delimiter = row.querySelector('.delimiter-input').value || ',';
+            const delimiter = row.querySelector('.delimiter-input').value || '|';
 
             if (role === 'source') {
                 sourceCol = { index, name: headers[index] };
@@ -588,6 +660,11 @@ class App {
             // ファイルハンドルをクリア
             this.currentFileHandle = null;
 
+            // テーブルパネルを表示
+            if (window.tablePanel) {
+                tablePanel.show();
+            }
+
             // 統計を表示
             const stats = networkManager.getStats();
             console.log(`Imported: ${stats.nodeCount} nodes, ${stats.edgeCount} edges`);
@@ -611,7 +688,7 @@ class App {
             const index = parseInt(row.dataset.index);
             const role = row.querySelector('.role-select').value;
             const dataType = row.querySelector('.datatype-select').value;
-            const delimiter = row.querySelector('.delimiter-input').value || ',';
+            const delimiter = row.querySelector('.delimiter-input').value || '|';
 
             if (role === 'node') {
                 nodeCol = { index, name: headers[index] };
@@ -854,6 +931,11 @@ class App {
                 if (handle) {
                     this.currentFileHandle = handle;
                     document.getElementById('menu-save').classList.remove('disabled');
+                }
+
+                // テーブルパネルを表示
+                if (window.tablePanel) {
+                    tablePanel.show();
                 }
 
                 const stats = networkManager.getStats();

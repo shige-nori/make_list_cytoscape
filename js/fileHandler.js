@@ -169,7 +169,7 @@ class FileHandler {
      * @param {string} delimiter - 配列の区切り文字
      * @returns {any}
      */
-    convertValue(value, dataType, delimiter = ',') {
+    convertValue(value, dataType, delimiter = '|') {
         if (value === '' || value === null || value === undefined) {
             return null;
         }
@@ -196,7 +196,9 @@ class FileHandler {
                 return null;
             
             case 'string[]':
-                return String(value).split(delimiter).map(s => s.trim());
+                return String(value).split(delimiter)
+                    .map(s => s.trim())
+                    .filter(s => s !== '');  // 空文字列を除外
             
             case 'number[]':
                 return String(value).split(delimiter)

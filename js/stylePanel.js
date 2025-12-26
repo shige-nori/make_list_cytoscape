@@ -1836,7 +1836,16 @@ class StylePanel {
             nodeStyles['background-color'] = this.getMappedColorValue(node, 'fillColor', fillColor, mappings);
             
             // Shape
-            nodeStyles['shape'] = this.getMappedValue(node, 'shape', shape, mappings);
+            const nodeShape = this.getMappedValue(node, 'shape', shape, mappings);
+            nodeStyles['shape'] = nodeShape;
+            
+            // overlay-shape をノードのshapeに合わせる
+            // Cytoscape.js の overlay-shape は 'ellipse' と 'round-rectangle' のみサポート
+            if (nodeShape === 'ellipse') {
+                nodeStyles['overlay-shape'] = 'ellipse';
+            } else {
+                nodeStyles['overlay-shape'] = 'round-rectangle';
+            }
             
             // Size
             const nodeSize = this.getMappedValue(node, 'size', size, mappings);
