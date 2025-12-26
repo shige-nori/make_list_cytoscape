@@ -85,14 +85,9 @@ class App {
      * イベントリスナーを設定
      */
     setupEventListeners() {
-        // メニュー: Style - Node
-        document.getElementById('menu-style-node').addEventListener('click', () => {
-            StylePanel.show('node');
-        });
-
-        // メニュー: Style - Edge
-        document.getElementById('menu-style-edge').addEventListener('click', () => {
-            StylePanel.show('edge');
+        // メニュー: Style
+        document.getElementById('menu-style').addEventListener('click', () => {
+            StylePanel.show();
         });
 
         // メニュー: View - Table Panel

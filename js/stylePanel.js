@@ -1,12 +1,10 @@
 /**
- * StylePanel - ノード/エッジスタイル設定パネル
+ * StylePanel - ノード/エッジスタイル設定パネル（統合版）
  */
 class StylePanel {
     // 静的インスタンス保持用
-    static instances = {
-        node: null,
-        edge: null
-    };
+    static instance = null;
+    static currentTab = 'node'; // 現在表示中のタブ
 
     // 設定値を保持する静的プロパティ
     static savedSettings = {
@@ -224,22 +222,26 @@ class StylePanel {
     /**
      * パネルを表示（シングルトン的に管理）
      */
-    static show(type) {
+    static show(tab = 'node') {
         // 既存のパネルがあれば表示
-        const existingPanel = document.getElementById(`style-panel-${type}`);
+        const existingPanel = document.getElementById('style-panel');
         if (existingPanel) {
             existingPanel.classList.add('active');
+            // タブを切り替え
+            if (StylePanel.instance) {
+                StylePanel.instance.switchTab(tab);
+            }
             return;
         }
 
         // 新しいインスタンスを作成
-        const panel = new StylePanel(type);
+        const panel = new StylePanel();
         panel.initialize();
-        StylePanel.instances[type] = panel;
+        StylePanel.instance = panel;
+        StylePanel.currentTab = tab;
     }
 
-    constructor(type) {
-        this.type = type; // 'node' or 'edge'
+    constructor() {
         this.panel = null;
     }
 
@@ -256,63 +258,109 @@ class StylePanel {
      * 保存された設定値を復元
      */
     restoreSavedSettings() {
-        if (this.type === 'node') {
-            const settings = StylePanel.savedSettings.node;
-            
-            // 基本設定を復元
-            const fontSizeInput = document.getElementById('node-label-font-size');
-            const labelColorInput = document.getElementById('node-label-color');
-            const fillColorInput = document.getElementById('node-fill-color');
-            const shapeSelect = document.getElementById('node-shape');
-            const sizeInput = document.getElementById('node-size');
-            
-            if (fontSizeInput) fontSizeInput.value = settings.labelFontSize;
-            if (labelColorInput) labelColorInput.value = settings.labelColor;
-            if (fillColorInput) fillColorInput.value = settings.fillColor;
-            if (shapeSelect) shapeSelect.value = settings.shape;
-            if (sizeInput) sizeInput.value = settings.size;
-            
-            // 各プロパティのマッピング設定を復元
-            const properties = ['labelFontSize', 'labelColor', 'fillColor', 'shape', 'size'];
-            properties.forEach(prop => {
-                const mapping = settings.mappings[prop];
-                if (mapping && mapping.active) {
-                    const mappingPanel = document.getElementById(`${prop}-mapping-panel`);
-                    const mappingBtn = document.getElementById(`${prop}-mapping-btn`);
+        // Node設定を復元
+        this.restoreNodeSettings();
+        // Edge設定を復元
+        this.restoreEdgeSettings();
+    }
+
+    /**
+     * Node設定を復元
+     */
+    restoreNodeSettings() {
+        const settings = StylePanel.savedSettings.node;
+        
+        // 基本設定を復元
+        const fontSizeInput = document.getElementById('node-label-font-size');
+        const labelColorInput = document.getElementById('node-label-color');
+        const fillColorInput = document.getElementById('node-fill-color');
+        const shapeSelect = document.getElementById('node-shape');
+        const sizeInput = document.getElementById('node-size');
+        
+        if (fontSizeInput) fontSizeInput.value = settings.labelFontSize;
+        if (labelColorInput) labelColorInput.value = settings.labelColor;
+        if (fillColorInput) fillColorInput.value = settings.fillColor;
+        if (shapeSelect) shapeSelect.value = settings.shape;
+        if (sizeInput) sizeInput.value = settings.size;
+        
+        // 各プロパティのマッピング設定を復元
+        const properties = ['labelFontSize', 'labelColor', 'fillColor', 'shape', 'size'];
+        properties.forEach(prop => {
+            const mapping = settings.mappings[prop];
+            if (mapping && mapping.active) {
+                const mappingPanel = document.getElementById(`${prop}-mapping-panel`);
+                const mappingBtn = document.getElementById(`${prop}-mapping-btn`);
+                
+                if (mappingPanel) {
+                    mappingPanel.style.display = 'block';
+                    if (mappingBtn) mappingBtn.classList.add('active');
                     
-                    if (mappingPanel) {
-                        mappingPanel.style.display = 'block';
-                        if (mappingBtn) mappingBtn.classList.add('active');
-                        
-                        // カラム選択肢を設定
-                        this.populateMappingColumnOptions(prop);
-                        
-                        const columnSelect = document.getElementById(`${prop}-mapping-column`);
-                        const typeSelect = document.getElementById(`${prop}-mapping-type`);
-                        
-                        if (columnSelect && mapping.column) {
-                            columnSelect.value = mapping.column;
-                        }
-                        if (typeSelect && mapping.type) {
-                            typeSelect.value = mapping.type;
-                        }
-                        
-                        // マッピング値を更新
-                        this.updateMappingValuesForProperty(prop);
+                    // カラム選択肢を設定
+                    this.populateMappingColumnOptions(prop);
+                    
+                    const columnSelect = document.getElementById(`${prop}-mapping-column`);
+                    const typeSelect = document.getElementById(`${prop}-mapping-type`);
+                    
+                    if (columnSelect && mapping.column) {
+                        columnSelect.value = mapping.column;
                     }
+                    if (typeSelect && mapping.type) {
+                        typeSelect.value = mapping.type;
+                    }
+                    
+                    // マッピング値を更新
+                    this.updateMappingValuesForProperty(prop);
                 }
-            });
-        } else {
-            const settings = StylePanel.savedSettings.edge;
-            
-            const lineTypeSelect = document.getElementById('edge-line-type');
-            const arrowShapeSelect = document.getElementById('edge-arrow-shape');
-            const widthInput = document.getElementById('edge-width');
-            
-            if (lineTypeSelect) lineTypeSelect.value = settings.lineType;
-            if (arrowShapeSelect) arrowShapeSelect.value = settings.arrowShape;
-            if (widthInput) widthInput.value = settings.width;
-        }
+            }
+        });
+    }
+
+    /**
+     * Edge設定を復元
+     */
+    restoreEdgeSettings() {
+        const settings = StylePanel.savedSettings.edge;
+        
+        const lineTypeSelect = document.getElementById('edge-line-type');
+        const arrowShapeSelect = document.getElementById('edge-arrow-shape');
+        const widthInput = document.getElementById('edge-width');
+        const lineColorInput = document.getElementById('edge-line-color');
+        
+        if (lineTypeSelect) lineTypeSelect.value = settings.lineType;
+        if (arrowShapeSelect) arrowShapeSelect.value = settings.arrowShape;
+        if (widthInput) widthInput.value = settings.width;
+        if (lineColorInput) lineColorInput.value = settings.lineColor;
+
+        // 各プロパティのマッピング設定を復元
+        const properties = ['lineType', 'arrowShape', 'width', 'lineColor'];
+        properties.forEach(prop => {
+            const mapping = settings.mappings[prop];
+            if (mapping && mapping.active) {
+                const mappingPanel = document.getElementById(`edge-${prop}-mapping-panel`);
+                const mappingBtn = document.getElementById(`edge-${prop}-mapping-btn`);
+                
+                if (mappingPanel) {
+                    mappingPanel.style.display = 'block';
+                    if (mappingBtn) mappingBtn.classList.add('active');
+                    
+                    // カラム選択肢を設定
+                    this.populateEdgeMappingColumnOptions(prop);
+                    
+                    const columnSelect = document.getElementById(`edge-${prop}-mapping-column`);
+                    const typeSelect = document.getElementById(`edge-${prop}-mapping-type`);
+                    
+                    if (columnSelect && mapping.column) {
+                        columnSelect.value = mapping.column;
+                    }
+                    if (typeSelect && mapping.type) {
+                        typeSelect.value = mapping.type;
+                    }
+                    
+                    // マッピング値を更新
+                    this.updateEdgeMappingValuesForProperty(prop);
+                }
+            }
+        });
     }
 
     /**
@@ -320,25 +368,35 @@ class StylePanel {
      */
     createPanel() {
         // 既存パネルがあれば削除
-        const old = document.getElementById(`style-panel-${this.type}`);
+        const old = document.getElementById('style-panel');
         if (old) old.remove();
 
         // パネル本体
         const panel = document.createElement('div');
         panel.className = 'tools-panel style-panel';
-        panel.id = `style-panel-${this.type}`;
+        panel.id = 'style-panel';
         panel.innerHTML = `
             <div class="tools-panel-header">
-                <h3>Style: ${this.type === 'node' ? 'Node' : 'Edge'}</h3>
-                <span class="tools-panel-close" id="style-panel-close-${this.type}">&times;</span>
+                <h3>Style</h3>
+                <span class="tools-panel-close" id="style-panel-close">&times;</span>
+            </div>
+            <div class="style-panel-tabs">
+                <button class="style-tab active" data-tab="node">Node</button>
+                <button class="style-tab" data-tab="edge">Edge</button>
             </div>
             <div class="tools-panel-body">
-                <div class="tool-section">
-                    <div class="tool-section-header">
-                        <span class="tool-section-title">設定項目</span>
+                <div class="style-tab-content" id="style-tab-node">
+                    <div class="tool-section">
+                        <div class="tool-section-body">
+                            ${this.createNodeSettings()}
+                        </div>
                     </div>
-                    <div class="tool-section-body">
-                        ${this.type === 'node' ? this.createNodeSettings() : this.createEdgeSettings()}
+                </div>
+                <div class="style-tab-content" id="style-tab-edge" style="display: none;">
+                    <div class="tool-section">
+                        <div class="tool-section-body">
+                            ${this.createEdgeSettings()}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -351,6 +409,27 @@ class StylePanel {
         panel.style.right = '10px';
         
         this.panel = panel;
+    }
+
+    /**
+     * タブを切り替え
+     */
+    switchTab(tab) {
+        StylePanel.currentTab = tab;
+        
+        // タブボタンのアクティブ状態を更新
+        this.panel.querySelectorAll('.style-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        
+        // タブコンテンツの表示を切り替え
+        this.panel.querySelectorAll('.style-tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        const activeContent = this.panel.querySelector(`#style-tab-${tab}`);
+        if (activeContent) {
+            activeContent.style.display = 'block';
+        }
     }
 
     /**
@@ -482,73 +561,94 @@ class StylePanel {
         // パネルを閉じる
         this.panel.querySelector('.tools-panel-close').addEventListener('click', () => {
             this.panel.remove();
+            StylePanel.instance = null;
         });
 
-        // 各設定項目の変更時にリアルタイムで適用
-        if (this.type === 'node') {
-            // 基本入力の変更時
-            const basicInputs = {
-                'node-label-font-size': 'labelFontSize',
-                'node-label-color': 'labelColor',
-                'node-fill-color': 'fillColor',
-                'node-shape': 'shape',
-                'node-size': 'size'
-            };
-            
-            Object.entries(basicInputs).forEach(([id, prop]) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    const handler = () => {
-                        // マッピング値をクリア
-                        const mapping = StylePanel.savedSettings.node.mappings[prop];
-                        if (mapping) {
-                            mapping.values = {};
-                            mapping.gradientColors = null;
-                        }
-                        this.applyNodeStyle();
-                    };
-                    element.addEventListener('input', handler);
-                    element.addEventListener('change', handler);
-                }
+        // タブ切り替え
+        this.panel.querySelectorAll('.style-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                this.switchTab(e.target.dataset.tab);
             });
+        });
 
-            // 各プロパティのMappingイベント設定
-            const properties = ['labelFontSize', 'labelColor', 'fillColor', 'shape', 'size'];
-            properties.forEach(prop => {
-                this.setupMappingEvents(prop);
-            });
-        } else {
-            // Edgeの基本入力の変更時
-            const basicInputs = {
-                'edge-line-type': 'lineType',
-                'edge-arrow-shape': 'arrowShape',
-                'edge-width': 'width',
-                'edge-line-color': 'lineColor'
-            };
-            
-            Object.entries(basicInputs).forEach(([id, prop]) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    const handler = () => {
-                        // マッピング値をクリア
-                        const mapping = StylePanel.savedSettings.edge.mappings[prop];
-                        if (mapping) {
-                            mapping.values = {};
-                            mapping.gradientColors = null;
-                        }
-                        this.applyEdgeStyle();
-                    };
-                    element.addEventListener('input', handler);
-                    element.addEventListener('change', handler);
-                }
-            });
+        // Node設定のイベント
+        this.setupNodeEvents();
+        
+        // Edge設定のイベント
+        this.setupEdgeEvents();
+    }
 
-            // 各プロパティのMappingイベント設定
-            const properties = ['lineType', 'arrowShape', 'width', 'lineColor'];
-            properties.forEach(prop => {
-                this.setupEdgeMappingEvents(prop);
-            });
-        }
+    /**
+     * Node設定のイベントを設定
+     */
+    setupNodeEvents() {
+        // 基本入力の変更時
+        const basicInputs = {
+            'node-label-font-size': 'labelFontSize',
+            'node-label-color': 'labelColor',
+            'node-fill-color': 'fillColor',
+            'node-shape': 'shape',
+            'node-size': 'size'
+        };
+        
+        Object.entries(basicInputs).forEach(([id, prop]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                const handler = () => {
+                    // マッピング値をクリア
+                    const mapping = StylePanel.savedSettings.node.mappings[prop];
+                    if (mapping) {
+                        mapping.values = {};
+                        mapping.gradientColors = null;
+                    }
+                    this.applyNodeStyle();
+                };
+                element.addEventListener('input', handler);
+                element.addEventListener('change', handler);
+            }
+        });
+
+        // 各プロパティのMappingイベント設定
+        const properties = ['labelFontSize', 'labelColor', 'fillColor', 'shape', 'size'];
+        properties.forEach(prop => {
+            this.setupMappingEvents(prop);
+        });
+    }
+
+    /**
+     * Edge設定のイベントを設定
+     */
+    setupEdgeEvents() {
+        // Edgeの基本入力の変更時
+        const basicInputs = {
+            'edge-line-type': 'lineType',
+            'edge-arrow-shape': 'arrowShape',
+            'edge-width': 'width',
+            'edge-line-color': 'lineColor'
+        };
+        
+        Object.entries(basicInputs).forEach(([id, prop]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                const handler = () => {
+                    // マッピング値をクリア
+                    const mapping = StylePanel.savedSettings.edge.mappings[prop];
+                    if (mapping) {
+                        mapping.values = {};
+                        mapping.gradientColors = null;
+                    }
+                    this.applyEdgeStyle();
+                };
+                element.addEventListener('input', handler);
+                element.addEventListener('change', handler);
+            }
+        });
+
+        // 各プロパティのMappingイベント設定
+        const properties = ['lineType', 'arrowShape', 'width', 'lineColor'];
+        properties.forEach(prop => {
+            this.setupEdgeMappingEvents(prop);
+        });
     }
 
     /**

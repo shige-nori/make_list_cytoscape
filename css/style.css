@@ -643,6 +643,41 @@ body {
     overflow-y: auto;
 }
 
+/* Style Panel Tabs */
+.style-panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-color);
+}
+
+.style-tab {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.style-tab:hover {
+    color: var(--text-color);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.style-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: white;
+}
+
+.style-tab-content {
+    /* content is controlled by display property */
+}
+
 /* Tool Section */
 .tool-section {
     margin-bottom: 20px;
