@@ -413,13 +413,33 @@ class NetworkManager {
     }
 
     /**
-     * ネットワークをJSON形式でエクスポート
+     * ネットワークをJSON形式でエクスポート（Cytoscape Desktop互換）
      * @returns {Object} - エクスポートデータ
      */
     exportToJSON() {
         if (!this.cy) return null;
 
-        const elements = this.cy.elements().jsons();
+        // Cytoscape Desktop互換形式で要素を構築
+        const nodes = [];
+        const edges = [];
+
+        // ノードデータを構築
+        this.cy.nodes().forEach(node => {
+            const nodeData = { ...node.data() };
+            // 位置情報を追加
+            const pos = node.position();
+            nodes.push({
+                data: nodeData,
+                position: { x: pos.x, y: pos.y }
+            });
+        });
+
+        // エッジデータを構築
+        this.cy.edges().forEach(edge => {
+            edges.push({
+                data: { ...edge.data() }
+            });
+        });
         
         // Style設定を深いコピーで取得
         let styleSettings = null;
@@ -449,16 +469,25 @@ class NetworkManager {
             console.error('Error getting edgeBendsSettings:', e);
         }
         
+        // Cytoscape Desktop互換形式 + 本アプリ拡張データ
         const exportData = {
-            version: '1.1',
-            exportDate: new Date().toISOString(),
-            nodes: Array.from(this.nodes.entries()),
-            edges: this.edges,
-            nodeAttributes: Array.from(this.nodeAttributes.entries()),
-            edgeAttributes: this.edgeAttributes,
-            cytoscapeElements: elements,
-            styleSettings: styleSettings,
-            edgeBendsSettings: edgeBendsSettings
+            format_version: "1.0",
+            generated_by: "cytoscape-js-app",
+            target_cytoscapejs_version: "~3.28",
+            data: {
+                name: "Network"
+            },
+            elements: {
+                nodes: nodes,
+                edges: edges
+            },
+            // 本アプリ独自の拡張データ（Cytoscape Desktopでは無視される）
+            appExtensions: {
+                version: '1.2',
+                exportDate: new Date().toISOString(),
+                styleSettings: styleSettings,
+                edgeBendsSettings: edgeBendsSettings
+            }
         };
         
         console.log('Full export data:', exportData);
@@ -466,8 +495,8 @@ class NetworkManager {
     }
 
     /**
-     * JSON形式からネットワークをインポート
-     * @param {Object} data - インポートデータ
+     * JSON形式からネットワークをインポート（CX2/Cytoscape Desktop互換 + レガシー形式対応）
+     * @param {Object|Array} data - インポートデータ
      * @returns {boolean} - 成功したかどうか
      */
     importFromJSON(data) {
@@ -498,69 +527,278 @@ class NetworkManager {
                 return obj;
             };
 
-            // ノードデータを変換して復元
-            const convertedNodes = (data.nodes || []).map(([id, nodeData]) => {
-                return [id, convertLegacyArrays(nodeData)];
-            });
-            this.nodes = new Map(convertedNodes);
+            // CX2形式かどうか判定（配列で、最初の要素にCXVersionがある）
+            const isCX2Format = Array.isArray(data) && data.length > 0 && data[0].CXVersion;
 
-            // エッジデータを変換して復元
-            this.edges = (data.edges || []).map(edge => convertLegacyArrays(edge));
+            // Cytoscape Desktop形式かどうか判定
+            const isCytoscapeDesktopFormat = !Array.isArray(data) && data.elements && 
+                (Array.isArray(data.elements.nodes) || Array.isArray(data.elements.edges));
+            
+            // レガシー形式（本アプリ旧形式）かどうか判定
+            const isLegacyFormat = !Array.isArray(data) && data.cytoscapeElements && Array.isArray(data.cytoscapeElements);
 
-            // ノード属性を変換して復元
-            const convertedNodeAttrs = (data.nodeAttributes || []).map(([id, attrs]) => {
-                return [id, convertLegacyArrays(attrs)];
-            });
-            this.nodeAttributes = new Map(convertedNodeAttrs);
+            if (isCX2Format) {
+                // CX2形式を読み込み
+                console.log('Loading CX2 format');
+                return this.importFromCX2(data, convertLegacyArrays);
 
-            // エッジ属性を変換して復元
-            this.edgeAttributes = (data.edgeAttributes || []).map(attr => convertLegacyArrays(attr));
+            } else if (isCytoscapeDesktopFormat) {
+                // Cytoscape Desktop互換形式を読み込み
+                console.log('Loading Cytoscape Desktop compatible format');
+                
+                const nodesArray = data.elements.nodes || [];
+                const edgesArray = data.elements.edges || [];
 
-            // Cytoscape要素を復元
-            if (data.cytoscapeElements && data.cytoscapeElements.length > 0) {
+                // ノードデータを復元
+                nodesArray.forEach(node => {
+                    const nodeData = convertLegacyArrays(node.data);
+                    const id = nodeData.id;
+                    if (id) {
+                        this.nodes.set(id, nodeData);
+                    }
+                });
+
+                // エッジデータを復元
+                edgesArray.forEach(edge => {
+                    const edgeData = convertLegacyArrays(edge.data);
+                    this.edges.push(edgeData);
+                });
+
                 // 空状態メッセージを削除
                 this.hideEmptyState();
-                
-                this.cy.add(data.cytoscapeElements);
+
+                // Cytoscape要素を追加（位置情報付き）
+                const cytoscapeElements = [];
+                nodesArray.forEach(node => {
+                    const ele = {
+                        group: 'nodes',
+                        data: convertLegacyArrays(node.data)
+                    };
+                    if (node.position) {
+                        ele.position = { x: node.position.x, y: node.position.y };
+                    }
+                    cytoscapeElements.push(ele);
+                });
+                edgesArray.forEach(edge => {
+                    cytoscapeElements.push({
+                        group: 'edges',
+                        data: convertLegacyArrays(edge.data)
+                    });
+                });
+
+                this.cy.add(cytoscapeElements);
                 this.fitWithZoomLimit();
-            }
 
-            // Style設定を復元
-            console.log('Importing styleSettings:', data.styleSettings);
-            if (data.styleSettings && window.StylePanel) {
-                // 深いコピーで復元
-                if (data.styleSettings.node) {
-                    StylePanel.savedSettings.node = JSON.parse(JSON.stringify(data.styleSettings.node));
-                }
-                if (data.styleSettings.edge) {
-                    StylePanel.savedSettings.edge = JSON.parse(JSON.stringify(data.styleSettings.edge));
-                }
-                console.log('StylePanel.savedSettings restored:', StylePanel.savedSettings);
-                
-                // 復元したスタイルをグラフに適用（静的メソッドを使用）
-                try {
-                    StylePanel.applyAllStyles();
-                    console.log('Styles applied to graph');
-                } catch (styleError) {
-                    console.error('Error applying styles:', styleError);
-                }
-            }
+                // 本アプリ拡張データがある場合は復元
+                if (data.appExtensions) {
+                    const ext = data.appExtensions;
+                    
+                    // Style設定を復元
+                    if (ext.styleSettings && window.StylePanel) {
+                        if (ext.styleSettings.node) {
+                            StylePanel.savedSettings.node = JSON.parse(JSON.stringify(ext.styleSettings.node));
+                        }
+                        if (ext.styleSettings.edge) {
+                            StylePanel.savedSettings.edge = JSON.parse(JSON.stringify(ext.styleSettings.edge));
+                        }
+                        try {
+                            StylePanel.applyAllStyles();
+                            console.log('Styles applied from appExtensions');
+                        } catch (styleError) {
+                            console.error('Error applying styles:', styleError);
+                        }
+                    }
 
-            // Edge Bends設定を復元
-            console.log('Importing edgeBendsSettings:', data.edgeBendsSettings);
-            if (data.edgeBendsSettings && window.edgeBends) {
-                edgeBends.currentBendStrength = data.edgeBendsSettings.bendStrength || 40;
-                const slider = document.getElementById('bend-strength-slider');
-                const valueDisplay = document.getElementById('bend-strength-value');
-                if (slider) slider.value = edgeBends.currentBendStrength;
-                if (valueDisplay) valueDisplay.textContent = edgeBends.currentBendStrength;
-                // エッジのカーブを適用
-                edgeBends.applyEdgeBends();
+                    // Edge Bends設定を復元
+                    if (ext.edgeBendsSettings && window.edgeBends) {
+                        edgeBends.currentBendStrength = ext.edgeBendsSettings.bendStrength || 40;
+                        const slider = document.getElementById('bend-strength-slider');
+                        const valueDisplay = document.getElementById('bend-strength-value');
+                        if (slider) slider.value = edgeBends.currentBendStrength;
+                        if (valueDisplay) valueDisplay.textContent = edgeBends.currentBendStrength;
+                        edgeBends.applyEdgeBends();
+                    }
+                }
+
+            } else if (isLegacyFormat) {
+                // レガシー形式（本アプリ旧形式）を読み込み
+                console.log('Loading legacy format');
+
+                // ノードデータを変換して復元
+                const convertedNodes = (data.nodes || []).map(([id, nodeData]) => {
+                    return [id, convertLegacyArrays(nodeData)];
+                });
+                this.nodes = new Map(convertedNodes);
+
+                // エッジデータを変換して復元
+                this.edges = (data.edges || []).map(edge => convertLegacyArrays(edge));
+
+                // ノード属性を変換して復元
+                const convertedNodeAttrs = (data.nodeAttributes || []).map(([id, attrs]) => {
+                    return [id, convertLegacyArrays(attrs)];
+                });
+                this.nodeAttributes = new Map(convertedNodeAttrs);
+
+                // エッジ属性を変換して復元
+                this.edgeAttributes = (data.edgeAttributes || []).map(attr => convertLegacyArrays(attr));
+
+                // Cytoscape要素を復元
+                if (data.cytoscapeElements && data.cytoscapeElements.length > 0) {
+                    this.hideEmptyState();
+                    this.cy.add(data.cytoscapeElements);
+                    this.fitWithZoomLimit();
+                }
+
+                // Style設定を復元
+                if (data.styleSettings && window.StylePanel) {
+                    if (data.styleSettings.node) {
+                        StylePanel.savedSettings.node = JSON.parse(JSON.stringify(data.styleSettings.node));
+                    }
+                    if (data.styleSettings.edge) {
+                        StylePanel.savedSettings.edge = JSON.parse(JSON.stringify(data.styleSettings.edge));
+                    }
+                    try {
+                        StylePanel.applyAllStyles();
+                        console.log('Styles applied from legacy format');
+                    } catch (styleError) {
+                        console.error('Error applying styles:', styleError);
+                    }
+                }
+
+                // Edge Bends設定を復元
+                if (data.edgeBendsSettings && window.edgeBends) {
+                    edgeBends.currentBendStrength = data.edgeBendsSettings.bendStrength || 40;
+                    const slider = document.getElementById('bend-strength-slider');
+                    const valueDisplay = document.getElementById('bend-strength-value');
+                    if (slider) slider.value = edgeBends.currentBendStrength;
+                    if (valueDisplay) valueDisplay.textContent = edgeBends.currentBendStrength;
+                    edgeBends.applyEdgeBends();
+                }
+
+            } else {
+                console.error('Unknown file format');
+                return false;
             }
 
             return true;
         } catch (error) {
             console.error('Import error:', error);
+            return false;
+        }
+    }
+
+    /**
+     * CX2形式からネットワークをインポート
+     * @param {Array} cx2Data - CX2形式のデータ（配列）
+     * @param {Function} convertLegacyArrays - 配列変換関数
+     * @returns {boolean} - 成功したかどうか
+     */
+    importFromCX2(cx2Data, convertLegacyArrays) {
+        try {
+            // CX2形式から各セクションを抽出
+            let nodesSection = null;
+            let edgesSection = null;
+            let attributeDeclarations = null;
+
+            cx2Data.forEach(section => {
+                if (section.nodes) {
+                    nodesSection = section.nodes;
+                }
+                if (section.edges) {
+                    edgesSection = section.edges;
+                }
+                if (section.attributeDeclarations) {
+                    attributeDeclarations = section.attributeDeclarations;
+                }
+            });
+
+            console.log('CX2 nodes:', nodesSection?.length || 0);
+            console.log('CX2 edges:', edgesSection?.length || 0);
+
+            const cytoscapeElements = [];
+
+            // ノードを処理
+            if (nodesSection && Array.isArray(nodesSection)) {
+                nodesSection.forEach(node => {
+                    // CX2形式: { id: number, x: number, y: number, v: { name: "...", ... } }
+                    const nodeId = node.v?.name || String(node.id);
+                    const nodeData = {
+                        id: nodeId,
+                        label: nodeId,
+                        ...convertLegacyArrays(node.v || {})
+                    };
+
+                    // 内部データに保存
+                    this.nodes.set(nodeId, nodeData);
+
+                    // Cytoscape要素を構築
+                    const ele = {
+                        group: 'nodes',
+                        data: nodeData
+                    };
+                    
+                    // 位置情報があれば追加
+                    if (node.x !== undefined && node.y !== undefined) {
+                        ele.position = { x: node.x, y: node.y };
+                    }
+                    
+                    cytoscapeElements.push(ele);
+                });
+            }
+
+            // IDからノード名へのマッピングを作成
+            const idToName = new Map();
+            if (nodesSection) {
+                nodesSection.forEach(node => {
+                    const nodeId = node.v?.name || String(node.id);
+                    idToName.set(node.id, nodeId);
+                });
+            }
+
+            // エッジを処理
+            if (edgesSection && Array.isArray(edgesSection)) {
+                edgesSection.forEach((edge, index) => {
+                    // CX2形式: { id: number, s: number, t: number, v: { ... } }
+                    const sourceId = idToName.get(edge.s) || String(edge.s);
+                    const targetId = idToName.get(edge.t) || String(edge.t);
+                    
+                    const edgeData = {
+                        id: `e${edge.id || index}`,
+                        source: sourceId,
+                        target: targetId,
+                        ...convertLegacyArrays(edge.v || {})
+                    };
+
+                    // 内部データに保存
+                    this.edges.push(edgeData);
+
+                    // Cytoscape要素を構築
+                    cytoscapeElements.push({
+                        group: 'edges',
+                        data: edgeData
+                    });
+                });
+            }
+
+            // 空状態メッセージを削除
+            this.hideEmptyState();
+
+            // Cytoscapeに要素を追加
+            this.cy.add(cytoscapeElements);
+            
+            // 位置情報がない場合はレイアウトを適用
+            const hasPositions = nodesSection && nodesSection.some(n => n.x !== undefined && n.y !== undefined);
+            if (!hasPositions) {
+                this.applyLayout('dagre');
+            } else {
+                this.fitWithZoomLimit();
+            }
+
+            console.log(`CX2 import complete: ${this.nodes.size} nodes, ${this.edges.length} edges`);
+            return true;
+
+        } catch (error) {
+            console.error('CX2 import error:', error);
             return false;
         }
     }

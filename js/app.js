@@ -839,10 +839,10 @@ class App {
         if ('showSaveFilePicker' in window) {
             try {
                 const handle = await window.showSaveFilePicker({
-                    suggestedName: 'network.cynet',
+                    suggestedName: 'network.cx2',
                     types: [{
                         description: 'Cytoscape Network File',
-                        accept: { 'application/json': ['.cynet'] }
+                        accept: { 'application/json': ['.cx2'] }
                     }]
                 });
                 const writable = await handle.createWritable();
@@ -867,7 +867,7 @@ class App {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'network.cynet';
+        a.download = 'network.cx2';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -884,7 +884,7 @@ class App {
                 const [handle] = await window.showOpenFilePicker({
                     types: [{
                         description: 'Cytoscape Network File',
-                        accept: { 'application/json': ['.cynet'] }
+                        accept: { 'application/json': ['.cx2'] }
                     }]
                 });
                 const file = await handle.getFile();

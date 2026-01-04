@@ -1,0 +1,18 @@
+1. Dagreレイアウト計算 (applyLayout('dagre'))
+場所: networkManager.js:273（updateCytoscape内）
+問題: Dagreは階層レイアウトを計算するアルゴリズムで、ノード・エッジが増えるとO(n²)以上の計算量になります。4000エッジ規模では数秒〜数十秒かかる可能性があります。
+2. データ変換処理（convertValue/convertLegacyArrays）
+場所: fileHandler.js:172-228（convertValue）、networkManager.js:483-512（convertLegacyArrays）
+問題: 各行の各属性に対してconvertValue()が呼ばれ、配列型の場合はsplit()とmap()が実行されます。大量データでは累積で時間がかかります。またimportFromJSONでは再帰的なconvertLegacyArraysがノード・エッジ全体に適用されます。
+3. Cytoscape要素の個別追加 (cy.add())
+場所: networkManager.js:268-269
+問題: 大量の要素を一度に追加すると、内部でのインデックス更新やイベント発火が累積します。バッチ処理（cy.batch()）を使わないと遅くなります。
+4. StylePanel.applyAllStyles()（スタイル適用）
+場所: stylePanel.js:45-100
+問題: 全ノード・全エッジに対してforEachでスタイルを個別に適用しています。マッピング計算もあり、要素数に比例して時間がかかります。
+5. Edge Bends適用 (edgeBends.applyEdgeBends())
+場所: networkManager.js:556-560（importFromJSON内で呼び出し）
+問題: 保存ファイル読み込み時にエッジのカーブを再計算・適用しており、エッジ数に応じて時間がかかります。
+6. CSVパース処理（文字単位処理）
+場所: fileHandler.js:81-108（parseCSVLine）
+問題: ダブルクォート対応のため1文字ずつ処理しており、大きなファイルでは累積で時間がかかる可能性があります。
