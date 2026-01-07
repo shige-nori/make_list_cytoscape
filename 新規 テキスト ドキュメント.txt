@@ -1,0 +1,82 @@
+ファイル取込処理の時系列フロー
+1. ファイル選択 → ファイル読み込み
+ユーザーがメニューから「File → Import → Network File」選択
+ファイル選択ダイアログ表示
+ファイル選択後、handleNetworkFile(file) 呼び出し (app.js:280-289)
+fileHandler.readFile(file) 実行 (fileHandler.js:14-26)
+2. ファイル形式別の解析
+CSVの場合:
+
+readCSV() → parseCSV() → parseCSVLine() (fileHandler.js:40-124)
+全行を1行ずつループ処理してパース
+Excelの場合:
+
+readExcel() → SheetJS の XLSX.read() (fileHandler.js:133-165)
+sheet_to_json() で全データを一括変換
+全セルを文字列に変換（String(cell)）
+3. モーダル表示とUI構築
+showNetworkModal() 実行 (app.js:291-304)
+createNetworkColumnSettings(headers, data) 実行 (app.js:373-441)
+全カラムに対してループ処理
+各カラムのデータ型を自動判定（detectColumnDataType）
+全行をスキャンして型を判定 (app.js:48-65)
+HTMLテーブルを生成（全カラム分）
+4. Importボタンクリック → データ変換
+importNetworkData() 実行 (app.js:600-668)
+カラム設定を収集
+50msのsetTimeout（UIの更新待ち）
+networkManager.importNetworkData() 実行 (networkManager.js:152-191)
+全データ行をループ処理
+各行でSource/Targetノードを作成/確認
+各属性カラムでconvertValue()実行（データ型変換）
+エッジオブジェクトを配列に追加
+5. ネットワーク描画
+updateCytoscape() 実行 (networkManager.js:244-274)
+全ノードをループして要素配列を構築
+全エッジをループして要素配列を構築
+Cytoscape.js にすべての要素を追加
+applyLayout('dagre') 実行 (networkManager.js:280-348)
+Dagreレイアウトアルゴリズムを実行（階層構造計算）
+アニメーション付きで配置（500ms）
+フィット処理
+⚠️ 時間がかかる・無駄な処理の箇所
+🔴 重大な問題
+データ型自動判定で全行スキャン (app.js:48-65)
+
+影響度: 高
+モーダル表示時に全カラム × 全行をスキャン
+大量データでは非常に遅い
+改善案: サンプリング（最初の100-1000行だけ判定）
+HTMLテーブル生成の文字列連結 (app.js:373-425)
+
+影響度: 中
+カラム数が多いと遅くなる
+改善案: DocumentFragmentやテンプレート利用
+データ変換が行ごとに実行 (networkManager.js:152-191)
+
+影響度: 高
+各行で複数回のconvertValue()呼び出し
+特に配列型（string[]など）はsplit()処理がコスト大
+改善案: バッチ処理やWorker利用
+要素追加後のレイアウト計算 (networkManager.js:280-348)
+
+影響度: 高
+Dagreアルゴリズムは計算コスト大（ノード/エッジ数に依存）
+数千ノードで数秒かかる可能性
+改善案: プログレス表示、Web Worker化
+🟡 軽微な無駄
+Excel読み込み時の全セル文字列化 (fileHandler.js:151-153)
+
+数値セルも強制的に文字列化
+型情報が失われる
+50msの固定待ち時間 (app.js:638, app.js:710)
+
+UIブロック対策だが固定値は最適でない
+改善案: requestAnimationFrameやrequestIdleCallback
+総合評価
+最も時間がかかる処理:
+
+データ型自動判定の全行スキャン（モーダル表示時）
+Dagreレイアウト計算（描画時）
+データ変換ループ（インポート時）
+大量データ（数千行以上）では、これらの処理が積み重なってビジー状態になります。特に、モーダル表示時点でUIがフリーズする可能性が高いです。
