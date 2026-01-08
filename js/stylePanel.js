@@ -364,7 +364,7 @@ class StylePanel {
     }
 
     /**
-     * パネルを作成
+     * パネルを作成 - Desktop VizMapper 風 UI
      */
     createPanel() {
         // 既存パネルがあれば削除
@@ -373,31 +373,23 @@ class StylePanel {
 
         // パネル本体
         const panel = document.createElement('div');
-        panel.className = 'tools-panel style-panel';
+        panel.className = 'tools-panel style-panel vizmapper-panel';
         panel.id = 'style-panel';
         panel.innerHTML = `
             <div class="tools-panel-header">
-                <h3>Style</h3>
+                <h3>VizMapper - Style</h3>
                 <span class="tools-panel-close" id="style-panel-close">&times;</span>
             </div>
             <div class="style-panel-tabs">
                 <button class="style-tab active" data-tab="node">Node</button>
                 <button class="style-tab" data-tab="edge">Edge</button>
             </div>
-            <div class="tools-panel-body">
+            <div class="vizmapper-body">
                 <div class="style-tab-content" id="style-tab-node">
-                    <div class="tool-section">
-                        <div class="tool-section-body">
-                            ${this.createNodeSettings()}
-                        </div>
-                    </div>
+                    ${this.createVizMapperTable('node')}
                 </div>
                 <div class="style-tab-content" id="style-tab-edge" style="display: none;">
-                    <div class="tool-section">
-                        <div class="tool-section-body">
-                            ${this.createEdgeSettings()}
-                        </div>
-                    </div>
+                    ${this.createVizMapperTable('edge')}
                 </div>
             </div>
         `;
@@ -409,6 +401,129 @@ class StylePanel {
         panel.style.right = '10px';
         
         this.panel = panel;
+    }
+
+    /**
+     * VizMapper テーブル形式のプロパティ一覧を作成
+     */
+    createVizMapperTable(type) {
+        const properties = type === 'node' ? this.getNodeProperties() : this.getEdgeProperties();
+        
+        return `
+            <div class="vizmapper-table-wrapper">
+                <table class="vizmapper-table">
+                    <thead>
+                        <tr>
+                            <th class="vizmapper-col-property">Visual Property</th>
+                            <th class="vizmapper-col-default">Default Value</th>
+                            <th class="vizmapper-col-mapping">Mapping</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${properties.map(prop => this.createVizMapperRow(prop, type)).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    /**
+     * Node プロパティ定義
+     */
+    getNodeProperties() {
+        return [
+            { id: 'fillColor', label: 'Fill Color', inputType: 'color', defaultValue: '#2563eb', valueType: 'color' },
+            { id: 'shape', label: 'Shape', inputType: 'select', options: [
+                { value: 'ellipse', label: '○ Ellipse' },
+                { value: 'rectangle', label: '□ Rectangle' },
+                { value: 'diamond', label: '◇ Diamond' },
+                { value: 'triangle', label: '△ Triangle' },
+                { value: 'round-rectangle', label: '▢ Round Rect' },
+                { value: 'hexagon', label: '⬡ Hexagon' }
+            ], defaultValue: 'ellipse', valueType: 'shape' },
+            { id: 'size', label: 'Size', inputType: 'number', min: 10, max: 200, defaultValue: '40', valueType: 'number' },
+            { id: 'labelFontSize', label: 'Label Font Size', inputType: 'number', min: 6, max: 72, defaultValue: '12', valueType: 'number' },
+            { id: 'labelColor', label: 'Label Color', inputType: 'color', defaultValue: '#1e293b', valueType: 'color' },
+            { id: 'borderWidth', label: 'Border Width', inputType: 'number', min: 0, max: 20, defaultValue: '1', valueType: 'number' },
+            { id: 'borderColor', label: 'Border Color', inputType: 'color', defaultValue: '#64748b', valueType: 'color' },
+            { id: 'opacity', label: 'Opacity', inputType: 'range', min: 0, max: 1, step: 0.1, defaultValue: '1', valueType: 'number' }
+        ];
+    }
+
+    /**
+     * Edge プロパティ定義
+     */
+    getEdgeProperties() {
+        return [
+            { id: 'lineColor', label: 'Line Color', inputType: 'color', defaultValue: '#94a3b8', valueType: 'color' },
+            { id: 'width', label: 'Width', inputType: 'number', min: 1, max: 20, defaultValue: '2', valueType: 'number' },
+            { id: 'lineType', label: 'Line Style', inputType: 'select', options: [
+                { value: 'solid', label: '─ Solid' },
+                { value: 'dashed', label: '╌ Dashed' },
+                { value: 'dotted', label: '┄ Dotted' }
+            ], defaultValue: 'solid', valueType: 'lineType' },
+            { id: 'arrowShape', label: 'Target Arrow', inputType: 'select', options: [
+                { value: 'triangle', label: '▶ Triangle' },
+                { value: 'triangle-tee', label: '▷ Triangle-Tee' },
+                { value: 'circle', label: '● Circle' },
+                { value: 'square', label: '■ Square' },
+                { value: 'diamond', label: '◆ Diamond' },
+                { value: 'none', label: '─ None' }
+            ], defaultValue: 'triangle', valueType: 'arrowShape' },
+            { id: 'opacity', label: 'Opacity', inputType: 'range', min: 0, max: 1, step: 0.1, defaultValue: '1', valueType: 'number' },
+            { id: 'curveStyle', label: 'Curve Style', inputType: 'select', options: [
+                { value: 'bezier', label: '⌒ Bezier' },
+                { value: 'straight', label: '─ Straight' },
+                { value: 'taxi', label: '⌐ Taxi' }
+            ], defaultValue: 'bezier', valueType: 'curveStyle' }
+        ];
+    }
+
+    /**
+     * VizMapper テーブル行を作成
+     */
+    createVizMapperRow(prop, type) {
+        const prefix = type === 'edge' ? 'edge-' : '';
+        const inputId = `${prefix}${prop.id}`;
+        const mappingId = `${prefix}${prop.id}-mapping`;
+        
+        // Default Value 入力コントロール
+        let defaultInput = '';
+        if (prop.inputType === 'color') {
+            defaultInput = `<input type="color" id="${inputId}" value="${prop.defaultValue}" class="vizmapper-input-color">`;
+        } else if (prop.inputType === 'number') {
+            defaultInput = `<input type="number" id="${inputId}" value="${prop.defaultValue}" min="${prop.min}" max="${prop.max}" class="vizmapper-input-number">`;
+        } else if (prop.inputType === 'range') {
+            defaultInput = `<input type="range" id="${inputId}" value="${prop.defaultValue}" min="${prop.min}" max="${prop.max}" step="${prop.step}" class="vizmapper-input-range"><span id="${inputId}-val">${prop.defaultValue}</span>`;
+        } else if (prop.inputType === 'select') {
+            defaultInput = `<select id="${inputId}" class="vizmapper-input-select">${prop.options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')}</select>`;
+        }
+
+        return `
+            <tr class="vizmapper-row" data-property="${prop.id}" data-type="${type}">
+                <td class="vizmapper-cell-property">
+                    <span class="vizmapper-property-label">${prop.label}</span>
+                </td>
+                <td class="vizmapper-cell-default">
+                    ${defaultInput}
+                </td>
+                <td class="vizmapper-cell-mapping">
+                    <div class="vizmapper-mapping-controls">
+                        <select id="${mappingId}-type" class="vizmapper-mapping-type" data-property="${prop.id}" data-element-type="${type}">
+                            <option value="none">-- None --</option>
+                            <option value="discrete">Discrete</option>
+                            ${prop.valueType === 'number' || prop.valueType === 'color' ? '<option value="continuous">Continuous</option>' : ''}
+                            <option value="passthrough">Passthrough</option>
+                        </select>
+                        <select id="${mappingId}-column" class="vizmapper-mapping-column" data-property="${prop.id}" data-element-type="${type}" style="display:none;">
+                            <option value="">-- Column --</option>
+                        </select>
+                        <button type="button" id="${mappingId}-edit" class="vizmapper-mapping-edit" data-property="${prop.id}" data-element-type="${type}" data-value-type="${prop.valueType}" style="display:none;">⚙</button>
+                    </div>
+                    <div id="${mappingId}-details" class="vizmapper-mapping-details" style="display:none;"></div>
+                </td>
+            </tr>
+        `;
     }
 
     /**
@@ -433,129 +548,7 @@ class StylePanel {
     }
 
     /**
-     * ノード設定UIを作成
-     */
-    createNodeSettings() {
-        return `
-            ${this.createMappingSection('labelFontSize', 'Label Font Size', 
-                '<input type="number" id="node-label-font-size" value="12" min="8" max="72" style="width: 100%;">', 
-                'number')}
-            ${this.createMappingSection('labelColor', 'Label Color', 
-                '<input type="color" id="node-label-color" value="#1e293b" style="width: 100%;">', 
-                'color')}
-            ${this.createMappingSection('fillColor', 'Fill Color', 
-                '<input type="color" id="node-fill-color" value="#2563eb" style="width: 100%;">', 
-                'color')}
-            ${this.createMappingSection('shape', 'Shape', 
-                `<select id="node-shape" style="width: 100%;">
-                    <option value="ellipse">○ (Ellipse)</option>
-                    <option value="rectangle">□ (Rectangle)</option>
-                    <option value="diamond">◇ (Diamond)</option>
-                    <option value="triangle">△ (Triangle)</option>
-                </select>`, 
-                'shape')}
-            ${this.createMappingSection('size', 'Size', 
-                '<input type="number" id="node-size" value="40" min="10" max="200" style="width: 100%;">', 
-                'number')}
-        `;
-    }
-
-    /**
-     * Mapping機能付きの設定セクションを作成
-     */
-    createMappingSection(property, label, inputHtml, valueType) {
-        const mappingId = `${property}-mapping`;
-        const showMappingType = valueType === 'color' || valueType === 'number';
-        return `
-            <div style="margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                    <label>${label}:</label>
-                    <button type="button" id="${mappingId}-btn" class="mapping-btn" data-property="${property}">Mapping</button>
-                </div>
-                ${inputHtml}
-                <div id="${mappingId}-panel" class="mapping-panel" style="display: none;" data-property="${property}" data-value-type="${valueType}">
-                    <div class="mapping-row">
-                        <label>Column:</label>
-                        <select id="${mappingId}-column" style="width: 100%;"></select>
-                    </div>
-                    ${showMappingType ? `
-                    <div class="mapping-row">
-                        <label>Mapping Type:</label>
-                        <select id="${mappingId}-type" style="width: 100%;">
-                            <option value="individual">Individual</option>
-                            ${valueType === 'color' ? '<option value="gradient">Gradient</option>' : ''}
-                            <option value="continuous">Continuous</option>
-                        </select>
-                    </div>
-                    ` : ''}
-                    <div id="${mappingId}-values" class="mapping-values"></div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * エッジ設定UIを作成
-     */
-    createEdgeSettings() {
-        return `
-            ${this.createEdgeMappingSection('lineType', 'Line Type', 
-                `<select id="edge-line-type" style="width: 100%;">
-                    <option value="solid">ノーマル</option>
-                    <option value="dashed">点線</option>
-                </select>`, 
-                'lineType')}
-            ${this.createEdgeMappingSection('arrowShape', 'Arrow Shape', 
-                `<select id="edge-arrow-shape" style="width: 100%;">
-                    <option value="triangle">矢印</option>
-                    <option value="none">ノーマル</option>
-                </select>`, 
-                'arrowShape')}
-            ${this.createEdgeMappingSection('width', 'Width', 
-                '<input type="number" id="edge-width" value="2" min="1" max="20" style="width: 100%;">', 
-                'number')}
-            ${this.createEdgeMappingSection('lineColor', 'Line Color', 
-                '<input type="color" id="edge-line-color" value="#94a3b8" style="width: 100%;">', 
-                'color')}
-        `;
-    }
-
-    /**
-     * Edge用Mapping機能付きの設定セクションを作成
-     */
-    createEdgeMappingSection(property, label, inputHtml, valueType) {
-        const mappingId = `edge-${property}-mapping`;
-        const showMappingType = valueType === 'color' || valueType === 'number';
-        return `
-            <div style="margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                    <label>${label}:</label>
-                    <button type="button" id="${mappingId}-btn" class="mapping-btn" data-property="${property}">Mapping</button>
-                </div>
-                ${inputHtml}
-                <div id="${mappingId}-panel" class="mapping-panel" style="display: none;" data-property="${property}" data-value-type="${valueType}">
-                    <div class="mapping-row">
-                        <label>Column:</label>
-                        <select id="${mappingId}-column" style="width: 100%;"></select>
-                    </div>
-                    ${showMappingType ? `
-                    <div class="mapping-row">
-                        <label>Mapping Type:</label>
-                        <select id="${mappingId}-type" style="width: 100%;">
-                            <option value="individual">Individual</option>
-                            ${valueType === 'color' ? '<option value="gradient">Gradient</option>' : ''}
-                            <option value="continuous">Continuous</option>
-                        </select>
-                    </div>
-                    ` : ''}
-                    <div id="${mappingId}-values" class="mapping-values"></div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * イベントリスナーを設定
+     * イベントリスナーを設定 - VizMapper UI用
      */
     setupEventListeners() {
         // パネルを閉じる
@@ -571,208 +564,407 @@ class StylePanel {
             });
         });
 
-        // Node設定のイベント
-        this.setupNodeEvents();
-        
-        // Edge設定のイベント
-        this.setupEdgeEvents();
+        // VizMapper イベント設定
+        this.setupVizMapperEvents('node');
+        this.setupVizMapperEvents('edge');
     }
 
     /**
-     * Node設定のイベントを設定
+     * VizMapper 形式のイベントを設定
      */
-    setupNodeEvents() {
-        // 基本入力の変更時
-        const basicInputs = {
-            'node-label-font-size': 'labelFontSize',
-            'node-label-color': 'labelColor',
-            'node-fill-color': 'fillColor',
-            'node-shape': 'shape',
-            'node-size': 'size'
+    setupVizMapperEvents(elementType) {
+        const properties = elementType === 'node' ? this.getNodeProperties() : this.getEdgeProperties();
+        const prefix = elementType === 'edge' ? 'edge-' : '';
+        
+        properties.forEach(prop => {
+            const inputId = `${prefix}${prop.id}`;
+            const mappingId = `${prefix}${prop.id}-mapping`;
+            
+            // Default Value の変更
+            const input = document.getElementById(inputId);
+            if (input) {
+                const handler = () => {
+                    // Range の場合はラベル更新
+                    if (prop.inputType === 'range') {
+                        const valSpan = document.getElementById(`${inputId}-val`);
+                        if (valSpan) valSpan.textContent = input.value;
+                    }
+                    
+                    // 保存設定を更新
+                    this.updateSavedSetting(elementType, prop.id, input.value);
+                    
+                    // マッピング値をクリア
+                    const mappings = elementType === 'node' 
+                        ? StylePanel.savedSettings.node.mappings 
+                        : StylePanel.savedSettings.edge.mappings;
+                    if (mappings[prop.id]) {
+                        mappings[prop.id].values = {};
+                        mappings[prop.id].gradientColors = null;
+                    }
+                    
+                    // スタイル適用
+                    if (elementType === 'node') {
+                        this.applyNodeStyle();
+                    } else {
+                        this.applyEdgeStyle();
+                    }
+                };
+                input.addEventListener('input', handler);
+                input.addEventListener('change', handler);
+            }
+            
+            // Mapping Type の変更
+            const typeSelect = document.getElementById(`${mappingId}-type`);
+            const columnSelect = document.getElementById(`${mappingId}-column`);
+            const editBtn = document.getElementById(`${mappingId}-edit`);
+            const detailsDiv = document.getElementById(`${mappingId}-details`);
+            
+            if (typeSelect) {
+                typeSelect.addEventListener('change', () => {
+                    const type = typeSelect.value;
+                    
+                    // Column選択の表示/非表示
+                    if (columnSelect) {
+                        columnSelect.style.display = type !== 'none' ? 'inline-block' : 'none';
+                    }
+                    if (editBtn) {
+                        editBtn.style.display = (type === 'discrete' || type === 'continuous') ? 'inline-block' : 'none';
+                    }
+                    if (detailsDiv) {
+                        detailsDiv.style.display = 'none';
+                        detailsDiv.innerHTML = '';
+                    }
+                    
+                    // Column選択肢を設定
+                    if (type !== 'none') {
+                        this.populateVizMapperColumns(elementType, prop.id);
+                    }
+                    
+                    // マッピング設定を更新
+                    this.updateMappingSettings(elementType, prop.id, type, '');
+                });
+            }
+            
+            // Column 選択の変更
+            if (columnSelect) {
+                columnSelect.addEventListener('change', () => {
+                    const type = typeSelect?.value || 'none';
+                    const column = columnSelect.value;
+                    
+                    this.updateMappingSettings(elementType, prop.id, type, column);
+                    
+                    // Passthrough の場合は即時適用
+                    if (type === 'passthrough') {
+                        this.applyPassthroughMapping(elementType, prop.id, column, prop.valueType);
+                    }
+                    // Discrete/Continuous の場合はマッピング値UI表示
+                    else if (type === 'discrete' || type === 'continuous') {
+                        this.showMappingDetailsUI(elementType, prop.id, type, column, prop.valueType);
+                    }
+                    
+                    // スタイル適用
+                    if (elementType === 'node') {
+                        this.applyNodeStyle();
+                    } else {
+                        this.applyEdgeStyle();
+                    }
+                });
+            }
+            
+            // Edit ボタンクリック
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    const type = typeSelect?.value || 'discrete';
+                    const column = columnSelect?.value || '';
+                    if (column) {
+                        this.showMappingDetailsUI(elementType, prop.id, type, column, prop.valueType);
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * 保存設定を更新
+     */
+    updateSavedSetting(elementType, property, value) {
+        const settings = elementType === 'node' 
+            ? StylePanel.savedSettings.node 
+            : StylePanel.savedSettings.edge;
+        
+        // プロパティ名のマッピング
+        const propertyMap = {
+            'fillColor': 'fillColor',
+            'shape': 'shape',
+            'size': 'size',
+            'labelFontSize': 'labelFontSize',
+            'labelColor': 'labelColor',
+            'borderWidth': 'borderWidth',
+            'borderColor': 'borderColor',
+            'opacity': 'opacity',
+            'lineColor': 'lineColor',
+            'width': 'width',
+            'lineType': 'lineType',
+            'arrowShape': 'arrowShape',
+            'curveStyle': 'curveStyle'
         };
         
-        Object.entries(basicInputs).forEach(([id, prop]) => {
-            const element = document.getElementById(id);
-            if (element) {
-                const handler = () => {
-                    // マッピング値をクリア
-                    const mapping = StylePanel.savedSettings.node.mappings[prop];
-                    if (mapping) {
-                        mapping.values = {};
-                        mapping.gradientColors = null;
-                    }
+        if (propertyMap[property]) {
+            settings[propertyMap[property]] = value;
+        }
+    }
+
+    /**
+     * VizMapper用のカラム選択肢を設定
+     */
+    populateVizMapperColumns(elementType, property) {
+        const prefix = elementType === 'edge' ? 'edge-' : '';
+        const columnSelect = document.getElementById(`${prefix}${property}-mapping-column`);
+        if (!columnSelect || !window.networkManager || !networkManager.cy) return;
+
+        columnSelect.innerHTML = '<option value="">-- Column --</option>';
+        
+        const elements = elementType === 'node' ? networkManager.cy.nodes() : networkManager.cy.edges();
+        const columns = new Set();
+        
+        elements.forEach(ele => {
+            Object.keys(ele.data()).forEach(key => {
+                if (!['id', 'source', 'target', 'label'].includes(key)) {
+                    columns.add(key);
+                }
+            });
+        });
+        
+        columns.forEach(col => {
+            const option = document.createElement('option');
+            option.value = col;
+            option.textContent = col;
+            columnSelect.appendChild(option);
+        });
+    }
+
+    /**
+     * マッピング設定を更新
+     */
+    updateMappingSettings(elementType, property, type, column) {
+        const mappings = elementType === 'node' 
+            ? StylePanel.savedSettings.node.mappings 
+            : StylePanel.savedSettings.edge.mappings;
+        
+        if (!mappings[property]) {
+            mappings[property] = { active: false, column: '', type: 'discrete', values: {} };
+        }
+        
+        mappings[property].active = type !== 'none' && column !== '';
+        mappings[property].column = column;
+        mappings[property].type = type;
+        mappings[property].values = {};
+        mappings[property].gradientColors = null;
+        mappings[property].continuousRange = null;
+    }
+
+    /**
+     * Passthrough マッピングを適用
+     */
+    applyPassthroughMapping(elementType, property, column, valueType) {
+        const mappings = elementType === 'node' 
+            ? StylePanel.savedSettings.node.mappings 
+            : StylePanel.savedSettings.edge.mappings;
+        
+        if (!mappings[property]) {
+            mappings[property] = { active: true, column, type: 'passthrough', values: {} };
+        }
+        mappings[property].active = true;
+        mappings[property].type = 'passthrough';
+        mappings[property].column = column;
+    }
+
+    /**
+     * マッピング詳細UIを表示
+     */
+    showMappingDetailsUI(elementType, property, type, column, valueType) {
+        const prefix = elementType === 'edge' ? 'edge-' : '';
+        const detailsDiv = document.getElementById(`${prefix}${property}-mapping-details`);
+        if (!detailsDiv || !window.networkManager || !networkManager.cy) return;
+
+        const elements = elementType === 'node' ? networkManager.cy.nodes() : networkManager.cy.edges();
+        const uniqueValues = new Set();
+        let minVal = Infinity, maxVal = -Infinity;
+        
+        elements.forEach(ele => {
+            const val = ele.data(column);
+            if (val !== undefined) {
+                uniqueValues.add(val);
+                if (typeof val === 'number') {
+                    minVal = Math.min(minVal, val);
+                    maxVal = Math.max(maxVal, val);
+                }
+            }
+        });
+
+        const mappings = elementType === 'node' 
+            ? StylePanel.savedSettings.node.mappings 
+            : StylePanel.savedSettings.edge.mappings;
+        const mapping = mappings[property] || { values: {} };
+
+        detailsDiv.style.display = 'block';
+        
+        if (type === 'discrete') {
+            detailsDiv.innerHTML = this.createDiscreteUI(property, valueType, Array.from(uniqueValues), mapping, elementType);
+            this.setupDiscreteEventHandlers(elementType, property, valueType);
+        } else if (type === 'continuous') {
+            detailsDiv.innerHTML = this.createContinuousUI(property, valueType, minVal, maxVal, mapping, elementType);
+            this.setupContinuousEventHandlers(elementType, property, valueType, minVal, maxVal);
+        }
+    }
+
+    /**
+     * Discrete マッピングUI作成
+     */
+    createDiscreteUI(property, valueType, uniqueValues, mapping, elementType) {
+        const prefix = elementType === 'edge' ? 'edge-' : '';
+        let html = '<div class="discrete-mapping-list">';
+        
+        uniqueValues.forEach((val, idx) => {
+            const savedValue = mapping.values?.[val] || '';
+            const inputId = `${prefix}${property}-discrete-${idx}`;
+            
+            if (valueType === 'color') {
+                html += `
+                    <div class="discrete-mapping-item">
+                        <span class="discrete-value">${val}</span>
+                        <input type="color" id="${inputId}" value="${savedValue || '#2563eb'}" data-key="${val}">
+                    </div>`;
+            } else if (valueType === 'number') {
+                html += `
+                    <div class="discrete-mapping-item">
+                        <span class="discrete-value">${val}</span>
+                        <input type="number" id="${inputId}" value="${savedValue || '10'}" data-key="${val}" min="1" max="200">
+                    </div>`;
+            } else {
+                html += `
+                    <div class="discrete-mapping-item">
+                        <span class="discrete-value">${val}</span>
+                        <input type="text" id="${inputId}" value="${savedValue || ''}" data-key="${val}">
+                    </div>`;
+            }
+        });
+        
+        html += '</div>';
+        return html;
+    }
+
+    /**
+     * Continuous マッピングUI作成
+     */
+    createContinuousUI(property, valueType, minVal, maxVal, mapping, elementType) {
+        const prefix = elementType === 'edge' ? 'edge-' : '';
+        
+        if (valueType === 'color') {
+            const minColor = mapping.gradientColors?.min || '#ffffff';
+            const maxColor = mapping.gradientColors?.max || '#2563eb';
+            return `
+                <div class="continuous-mapping-gradient">
+                    <div class="gradient-endpoint">
+                        <label>Min (${minVal}):</label>
+                        <input type="color" id="${prefix}${property}-cont-min" value="${minColor}">
+                    </div>
+                    <div class="gradient-preview" id="${prefix}${property}-gradient-preview" 
+                         style="background: linear-gradient(to right, ${minColor}, ${maxColor}); height: 20px; margin: 5px 0;"></div>
+                    <div class="gradient-endpoint">
+                        <label>Max (${maxVal}):</label>
+                        <input type="color" id="${prefix}${property}-cont-max" value="${maxColor}">
+                    </div>
+                </div>`;
+        } else {
+            const minSize = mapping.continuousRange?.min || 10;
+            const maxSize = mapping.continuousRange?.max || 100;
+            return `
+                <div class="continuous-mapping-range">
+                    <div class="range-endpoint">
+                        <label>Min (${minVal}):</label>
+                        <input type="number" id="${prefix}${property}-cont-min" value="${minSize}" min="1" max="200">
+                    </div>
+                    <div class="range-endpoint">
+                        <label>Max (${maxVal}):</label>
+                        <input type="number" id="${prefix}${property}-cont-max" value="${maxSize}" min="1" max="200">
+                    </div>
+                </div>`;
+        }
+    }
+
+    /**
+     * Discrete マッピングのイベントハンドラ設定
+     */
+    setupDiscreteEventHandlers(elementType, property, valueType) {
+        const prefix = elementType === 'edge' ? 'edge-' : '';
+        const detailsDiv = document.getElementById(`${prefix}${property}-mapping-details`);
+        if (!detailsDiv) return;
+        
+        const mappings = elementType === 'node' 
+            ? StylePanel.savedSettings.node.mappings 
+            : StylePanel.savedSettings.edge.mappings;
+        const mapping = mappings[property];
+
+        detailsDiv.querySelectorAll('input').forEach(input => {
+            const handler = () => {
+                const key = input.dataset.key;
+                mapping.values[key] = input.value;
+                
+                if (elementType === 'node') {
                     this.applyNodeStyle();
-                };
-                element.addEventListener('input', handler);
-                element.addEventListener('change', handler);
-            }
-        });
-
-        // 各プロパティのMappingイベント設定
-        const properties = ['labelFontSize', 'labelColor', 'fillColor', 'shape', 'size'];
-        properties.forEach(prop => {
-            this.setupMappingEvents(prop);
+                } else {
+                    this.applyEdgeStyle();
+                }
+            };
+            input.addEventListener('input', handler);
+            input.addEventListener('change', handler);
         });
     }
 
     /**
-     * Edge設定のイベントを設定
+     * Continuous マッピングのイベントハンドラ設定
      */
-    setupEdgeEvents() {
-        // Edgeの基本入力の変更時
-        const basicInputs = {
-            'edge-line-type': 'lineType',
-            'edge-arrow-shape': 'arrowShape',
-            'edge-width': 'width',
-            'edge-line-color': 'lineColor'
+    setupContinuousEventHandlers(elementType, property, valueType, dataMin, dataMax) {
+        const prefix = elementType === 'edge' ? 'edge-' : '';
+        const minInput = document.getElementById(`${prefix}${property}-cont-min`);
+        const maxInput = document.getElementById(`${prefix}${property}-cont-max`);
+        const previewDiv = document.getElementById(`${prefix}${property}-gradient-preview`);
+        
+        if (!minInput || !maxInput) return;
+        
+        const mappings = elementType === 'node' 
+            ? StylePanel.savedSettings.node.mappings 
+            : StylePanel.savedSettings.edge.mappings;
+        const mapping = mappings[property];
+
+        const handler = () => {
+            if (valueType === 'color') {
+                mapping.gradientColors = { min: minInput.value, max: maxInput.value };
+                mapping.continuousRange = { dataMin, dataMax };
+                if (previewDiv) {
+                    previewDiv.style.background = `linear-gradient(to right, ${minInput.value}, ${maxInput.value})`;
+                }
+            } else {
+                mapping.continuousRange = { 
+                    min: parseFloat(minInput.value), 
+                    max: parseFloat(maxInput.value),
+                    dataMin, 
+                    dataMax 
+                };
+            }
+            
+            if (elementType === 'node') {
+                this.applyNodeStyle();
+            } else {
+                this.applyEdgeStyle();
+            }
         };
         
-        Object.entries(basicInputs).forEach(([id, prop]) => {
-            const element = document.getElementById(id);
-            if (element) {
-                const handler = () => {
-                    // マッピング値をクリア
-                    const mapping = StylePanel.savedSettings.edge.mappings[prop];
-                    if (mapping) {
-                        mapping.values = {};
-                        mapping.gradientColors = null;
-                    }
-                    this.applyEdgeStyle();
-                };
-                element.addEventListener('input', handler);
-                element.addEventListener('change', handler);
-            }
-        });
-
-        // 各プロパティのMappingイベント設定
-        const properties = ['lineType', 'arrowShape', 'width', 'lineColor'];
-        properties.forEach(prop => {
-            this.setupEdgeMappingEvents(prop);
-        });
-    }
-
-    /**
-     * 各プロパティのMappingイベントを設定
-     */
-    setupMappingEvents(property) {
-        const mappingBtn = document.getElementById(`${property}-mapping-btn`);
-        const mappingPanel = document.getElementById(`${property}-mapping-panel`);
-        const columnSelect = document.getElementById(`${property}-mapping-column`);
-        const typeSelect = document.getElementById(`${property}-mapping-type`);
-
-        if (!mappingBtn || !mappingPanel) return;
-
-        const mapping = StylePanel.savedSettings.node.mappings[property];
-
-        // Mappingボタンクリックでパネル表示/非表示
-        mappingBtn.addEventListener('click', () => {
-            mapping.active = !mapping.active;
-            mappingPanel.style.display = mapping.active ? 'block' : 'none';
-            mappingBtn.classList.toggle('active', mapping.active);
-
-            if (mapping.active) {
-                this.populateMappingColumnOptions(property);
-                
-                // 保存されたカラム設定を復元
-                if (mapping.column) {
-                    columnSelect.value = mapping.column;
-                    if (typeSelect && mapping.type) {
-                        typeSelect.value = mapping.type;
-                    }
-                    this.updateMappingValuesForProperty(property);
-                }
-            }
-        });
-
-        // Column選択変更時
-        columnSelect.addEventListener('change', () => {
-            mapping.column = columnSelect.value;
-            mapping.values = {};
-            mapping.gradientColors = null;
-            mapping.continuousRange = null;
-            
-            // Mapping Typeを更新
-            if (typeSelect) {
-                this.updateMappingTypeForProperty(property);
-            }
-            this.updateMappingValuesForProperty(property);
-            this.applyNodeStyle();
-        });
-
-        // Mapping Type変更時
-        if (typeSelect) {
-            typeSelect.addEventListener('change', () => {
-                mapping.type = typeSelect.value;
-                mapping.values = {};
-                mapping.gradientColors = null;
-                mapping.continuousRange = null;
-                
-                this.updateMappingValuesForProperty(property);
-                this.applyNodeStyle();
-            });
-        }
-    }
-
-    /**
-     * Edge用のMappingイベントを設定
-     */
-    setupEdgeMappingEvents(property) {
-        const mappingBtn = document.getElementById(`edge-${property}-mapping-btn`);
-        const mappingPanel = document.getElementById(`edge-${property}-mapping-panel`);
-        const columnSelect = document.getElementById(`edge-${property}-mapping-column`);
-        const typeSelect = document.getElementById(`edge-${property}-mapping-type`);
-
-        if (!mappingBtn || !mappingPanel) return;
-
-        const mapping = StylePanel.savedSettings.edge.mappings[property];
-
-        // Mappingボタンクリックでパネル表示/非表示
-        mappingBtn.addEventListener('click', () => {
-            mapping.active = !mapping.active;
-            mappingPanel.style.display = mapping.active ? 'block' : 'none';
-            mappingBtn.classList.toggle('active', mapping.active);
-
-            if (mapping.active) {
-                this.populateEdgeMappingColumnOptions(property);
-                
-                // 保存されたカラム設定を復元
-                if (mapping.column) {
-                    columnSelect.value = mapping.column;
-                    if (typeSelect && mapping.type) {
-                        typeSelect.value = mapping.type;
-                    }
-                    this.updateEdgeMappingValuesForProperty(property);
-                }
-            }
-        });
-
-        // Column選択変更時
-        columnSelect.addEventListener('change', () => {
-            mapping.column = columnSelect.value;
-            mapping.values = {};
-            mapping.gradientColors = null;
-            mapping.continuousRange = null;
-            
-            // Mapping Typeを更新
-            if (typeSelect) {
-                this.updateEdgeMappingTypeForProperty(property);
-            }
-            this.updateEdgeMappingValuesForProperty(property);
-            this.applyEdgeStyle();
-        });
-
-        // Mapping Type変更時
-        if (typeSelect) {
-            typeSelect.addEventListener('change', () => {
-                mapping.type = typeSelect.value;
-                mapping.values = {};
-                mapping.gradientColors = null;
-                mapping.continuousRange = null;
-                
-                this.updateEdgeMappingValuesForProperty(property);
-                this.applyEdgeStyle();
-            });
-        }
+        minInput.addEventListener('input', handler);
+        minInput.addEventListener('change', handler);
+        maxInput.addEventListener('input', handler);
+        maxInput.addEventListener('change', handler);
     }
 
     /**
@@ -1893,7 +2085,7 @@ class StylePanel {
     }
 
     /**
-     * ノードスタイルを適用
+     * ノードスタイルを適用 - VizMapper UI 対応
      */
     applyNodeStyle() {
         if (!window.networkManager || !networkManager.cy) {
@@ -1901,17 +2093,24 @@ class StylePanel {
             return;
         }
 
-        const fontSizeEl = document.getElementById('node-label-font-size');
-        const labelColorEl = document.getElementById('node-label-color');
-        const fillColorEl = document.getElementById('node-fill-color');
-        const shapeEl = document.getElementById('node-shape');
-        const sizeEl = document.getElementById('node-size');
+        // VizMapper 形式の ID を使用
+        const fontSizeEl = document.getElementById('labelFontSize');
+        const labelColorEl = document.getElementById('labelColor');
+        const fillColorEl = document.getElementById('fillColor');
+        const shapeEl = document.getElementById('shape');
+        const sizeEl = document.getElementById('size');
+        const borderWidthEl = document.getElementById('borderWidth');
+        const borderColorEl = document.getElementById('borderColor');
+        const opacityEl = document.getElementById('opacity');
 
         const fontSize = fontSizeEl ? fontSizeEl.value : StylePanel.savedSettings.node.labelFontSize;
         const labelColor = labelColorEl ? labelColorEl.value : StylePanel.savedSettings.node.labelColor;
         const fillColor = fillColorEl ? fillColorEl.value : StylePanel.savedSettings.node.fillColor;
         const shape = shapeEl ? shapeEl.value : StylePanel.savedSettings.node.shape;
         const size = sizeEl ? sizeEl.value : StylePanel.savedSettings.node.size;
+        const borderWidth = borderWidthEl ? borderWidthEl.value : (StylePanel.savedSettings.node.borderWidth || '1');
+        const borderColor = borderColorEl ? borderColorEl.value : (StylePanel.savedSettings.node.borderColor || '#64748b');
+        const opacity = opacityEl ? opacityEl.value : (StylePanel.savedSettings.node.opacity || '1');
 
         // 設定値を保存
         StylePanel.savedSettings.node.labelFontSize = fontSize;
@@ -1919,6 +2118,9 @@ class StylePanel {
         StylePanel.savedSettings.node.fillColor = fillColor;
         StylePanel.savedSettings.node.shape = shape;
         StylePanel.savedSettings.node.size = size;
+        StylePanel.savedSettings.node.borderWidth = borderWidth;
+        StylePanel.savedSettings.node.borderColor = borderColor;
+        StylePanel.savedSettings.node.opacity = opacity;
 
         const mappings = StylePanel.savedSettings.node.mappings;
 
@@ -1940,7 +2142,6 @@ class StylePanel {
             nodeStyles['shape'] = nodeShape;
             
             // overlay-shape をノードのshapeに合わせる
-            // Cytoscape.js の overlay-shape は 'ellipse' と 'round-rectangle' のみサポート
             if (nodeShape === 'ellipse') {
                 nodeStyles['overlay-shape'] = 'ellipse';
             } else {
@@ -1952,6 +2153,15 @@ class StylePanel {
             nodeStyles['width'] = nodeSize + 'px';
             nodeStyles['height'] = nodeSize + 'px';
             
+            // Border Width
+            nodeStyles['border-width'] = this.getMappedValue(node, 'borderWidth', borderWidth, mappings) + 'px';
+            
+            // Border Color
+            nodeStyles['border-color'] = this.getMappedColorValue(node, 'borderColor', borderColor, mappings);
+            
+            // Opacity
+            nodeStyles['opacity'] = this.getMappedValue(node, 'opacity', opacity, mappings);
+            
             node.style(nodeStyles);
         });
 
@@ -1959,7 +2169,7 @@ class StylePanel {
     }
 
     /**
-     * マッピングされた値を取得（数値・Shape用）
+     * マッピングされた値を取得（数値・Shape用） - Passthrough 対応
      */
     getMappedValue(node, property, defaultValue, mappings) {
         const mapping = mappings[property];
@@ -1969,6 +2179,21 @@ class StylePanel {
         }
 
         const nodeValue = node.data(mapping.column);
+
+        // Passthrough マッピングの場合
+        if (mapping.type === 'passthrough') {
+            if (nodeValue !== undefined && nodeValue !== null && nodeValue !== '') {
+                // 数値プロパティの場合は数値変換
+                if (property === 'size' || property === 'labelFontSize' || property === 'borderWidth' || property === 'opacity') {
+                    const numVal = parseFloat(nodeValue);
+                    if (!isNaN(numVal)) {
+                        return numVal;
+                    }
+                }
+                return nodeValue;
+            }
+            return defaultValue;
+        }
 
         // Continuousマッピングの場合
         if (mapping.type === 'continuous' && mapping.continuousRange) {
@@ -1988,7 +2213,7 @@ class StylePanel {
             return defaultValue;
         }
 
-        // Individualマッピングの場合
+        // Discrete (Individual) マッピングの場合
         const strValue = String(nodeValue || '');
         const mappedValue = mapping.values[strValue];
         
@@ -1996,7 +2221,7 @@ class StylePanel {
     }
 
     /**
-     * マッピングされた色を取得（Color用 - Gradient対応）
+     * マッピングされた色を取得（Color用 - Gradient/Passthrough対応）
      */
     getMappedColorValue(node, property, defaultColor, mappings) {
         const mapping = mappings[property];
@@ -2007,7 +2232,17 @@ class StylePanel {
 
         const nodeValue = node.data(mapping.column);
 
-        if (mapping.type === 'gradient' && mapping.gradientColors) {
+        // Passthrough マッピングの場合
+        if (mapping.type === 'passthrough') {
+            // 値が有効なカラーコードかチェック
+            if (nodeValue && typeof nodeValue === 'string' && nodeValue.match(/^#[0-9A-Fa-f]{6}$/)) {
+                return nodeValue;
+            }
+            return defaultColor;
+        }
+
+        // Gradient (Continuous) マッピングの場合
+        if ((mapping.type === 'gradient' || mapping.type === 'continuous') && mapping.gradientColors) {
             const numValue = parseFloat(nodeValue);
             if (!isNaN(numValue)) {
                 const { min, max } = this.getNumericRange(mapping.column);
@@ -2016,14 +2251,14 @@ class StylePanel {
             }
             return defaultColor;
         } else {
-            // Individual mapping
+            // Discrete (Individual) マッピング
             const mappedColor = mapping.values[String(nodeValue || '')];
             return mappedColor !== undefined ? mappedColor : defaultColor;
         }
     }
 
     /**
-     * エッジスタイルを適用
+     * エッジスタイルを適用 - VizMapper UI 対応
      */
     applyEdgeStyle() {
         if (!window.networkManager || !networkManager.cy) {
@@ -2031,21 +2266,28 @@ class StylePanel {
             return;
         }
 
-        const lineTypeEl = document.getElementById('edge-line-type');
-        const arrowShapeEl = document.getElementById('edge-arrow-shape');
+        // VizMapper 形式の ID を使用
+        const lineTypeEl = document.getElementById('edge-lineType');
+        const arrowShapeEl = document.getElementById('edge-arrowShape');
         const widthEl = document.getElementById('edge-width');
-        const lineColorEl = document.getElementById('edge-line-color');
+        const lineColorEl = document.getElementById('edge-lineColor');
+        const opacityEl = document.getElementById('edge-opacity');
+        const curveStyleEl = document.getElementById('edge-curveStyle');
 
         const lineType = lineTypeEl ? lineTypeEl.value : StylePanel.savedSettings.edge.lineType;
         const arrowShape = arrowShapeEl ? arrowShapeEl.value : StylePanel.savedSettings.edge.arrowShape;
         const width = widthEl ? widthEl.value : StylePanel.savedSettings.edge.width;
         const lineColor = lineColorEl ? lineColorEl.value : StylePanel.savedSettings.edge.lineColor;
+        const opacity = opacityEl ? opacityEl.value : (StylePanel.savedSettings.edge.opacity || '1');
+        const curveStyle = curveStyleEl ? curveStyleEl.value : (StylePanel.savedSettings.edge.curveStyle || 'bezier');
 
         // 設定値を保存
         StylePanel.savedSettings.edge.lineType = lineType;
         StylePanel.savedSettings.edge.arrowShape = arrowShape;
         StylePanel.savedSettings.edge.width = width;
         StylePanel.savedSettings.edge.lineColor = lineColor;
+        StylePanel.savedSettings.edge.opacity = opacity;
+        StylePanel.savedSettings.edge.curveStyle = curveStyle;
 
         const mappings = StylePanel.savedSettings.edge.mappings;
 
@@ -2055,7 +2297,13 @@ class StylePanel {
             
             // Line Type
             const mappedLineType = this.getEdgeMappedValue(edge, 'lineType', lineType, mappings);
-            edgeStyles['line-style'] = mappedLineType === 'dashed' ? 'dashed' : 'solid';
+            if (mappedLineType === 'dashed') {
+                edgeStyles['line-style'] = 'dashed';
+            } else if (mappedLineType === 'dotted') {
+                edgeStyles['line-style'] = 'dotted';
+            } else {
+                edgeStyles['line-style'] = 'solid';
+            }
             
             // Arrow Shape
             edgeStyles['target-arrow-shape'] = this.getEdgeMappedValue(edge, 'arrowShape', arrowShape, mappings);
@@ -2068,6 +2316,12 @@ class StylePanel {
             edgeStyles['line-color'] = mappedColor;
             edgeStyles['target-arrow-color'] = mappedColor;
             
+            // Curve Style
+            edgeStyles['curve-style'] = this.getEdgeMappedValue(edge, 'curveStyle', curveStyle, mappings);
+            
+            // Opacity
+            edgeStyles['opacity'] = this.getEdgeMappedValue(edge, 'opacity', opacity, mappings);
+            
             edge.style(edgeStyles);
         });
 
@@ -2075,7 +2329,7 @@ class StylePanel {
     }
 
     /**
-     * エッジのマッピングされた値を取得
+     * エッジのマッピングされた値を取得 - Passthrough 対応
      */
     getEdgeMappedValue(edge, property, defaultValue, mappings) {
         const mapping = mappings[property];
@@ -2084,6 +2338,21 @@ class StylePanel {
         }
 
         const edgeValue = edge.data(mapping.column);
+
+        // Passthrough マッピングの場合
+        if (mapping.type === 'passthrough') {
+            if (edgeValue !== undefined && edgeValue !== null && edgeValue !== '') {
+                // 数値プロパティの場合は数値変換
+                if (property === 'width' || property === 'opacity') {
+                    const numVal = parseFloat(edgeValue);
+                    if (!isNaN(numVal)) {
+                        return numVal;
+                    }
+                }
+                return edgeValue;
+            }
+            return defaultValue;
+        }
 
         // Continuousマッピングの場合
         if (mapping.type === 'continuous' && mapping.continuousRange) {
@@ -2098,7 +2367,7 @@ class StylePanel {
             return defaultValue;
         }
 
-        // Individualマッピングの場合
+        // Discrete (Individual) マッピングの場合
         const strValue = String(edgeValue || '');
         const mappedValue = mapping.values[strValue];
         
@@ -2106,7 +2375,7 @@ class StylePanel {
     }
 
     /**
-     * エッジのマッピングされた色を取得
+     * エッジのマッピングされた色を取得 - Passthrough 対応
      */
     getEdgeMappedColorValue(edge, property, defaultColor, mappings) {
         const mapping = mappings[property];
@@ -2116,7 +2385,16 @@ class StylePanel {
 
         const edgeValue = edge.data(mapping.column);
 
-        if (mapping.type === 'gradient' && mapping.gradientColors) {
+        // Passthrough マッピングの場合
+        if (mapping.type === 'passthrough') {
+            if (edgeValue && typeof edgeValue === 'string' && edgeValue.match(/^#[0-9A-Fa-f]{6}$/)) {
+                return edgeValue;
+            }
+            return defaultColor;
+        }
+
+        // Gradient (Continuous) マッピングの場合
+        if ((mapping.type === 'gradient' || mapping.type === 'continuous') && mapping.gradientColors) {
             const numValue = parseFloat(edgeValue);
             if (!isNaN(numValue)) {
                 const { min, max } = this.getEdgeNumericRange(mapping.column);
@@ -2125,6 +2403,7 @@ class StylePanel {
             }
             return defaultColor;
         } else {
+            // Discrete (Individual) マッピング
             const mappedColor = mapping.values[String(edgeValue || '')];
             return mappedColor !== undefined ? mappedColor : defaultColor;
         }

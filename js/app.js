@@ -19,13 +19,15 @@ class App {
     }
 
     /**
-     * カラムの値が全て整数かどうかを判定
+     * カラムの値が全て整数かどうかを判定（最初の100行をサンプリング）
      * @param {any[][]} data - データ行
      * @param {number} columnIndex - カラムインデックス
      * @returns {boolean}
      */
     isColumnAllIntegers(data, columnIndex) {
-        for (const row of data) {
+        const sampleSize = Math.min(100, data.length);
+        for (let i = 0; i < sampleSize; i++) {
+            const row = data[i];
             const value = row[columnIndex];
             if (value === undefined || value === null || value === '') {
                 continue; // 空の値はスキップ
@@ -42,20 +44,20 @@ class App {
     }
 
     /**
-     * カラムのデータ型を自動判定
+     * カラムのデータ型を自動判定（最初の100行をサンプリング）
      * @param {any[][]} data - データ行
      * @param {number} columnIndex - カラムインデックス
      * @returns {string} - データ型
      */
     detectColumnDataType(data, columnIndex) {
-        // 「| 」区切りのデータがあれば配列型として検出
-        const hasArrayDelimiter = data.some(row => {
-            const value = row[columnIndex];
-            return value && typeof value === 'string' && value.includes('| ');
-        });
+        const sampleSize = Math.min(100, data.length);
         
-        if (hasArrayDelimiter) {
-            return 'string[]';
+        // 「| 」区切りのデータがあれば配列型として検出（サンプル範囲のみ）
+        for (let i = 0; i < sampleSize; i++) {
+            const value = data[i][columnIndex];
+            if (value && typeof value === 'string' && value.includes('| ')) {
+                return 'string[]';
+            }
         }
         
         if (this.isColumnAllIntegers(data, columnIndex)) {
