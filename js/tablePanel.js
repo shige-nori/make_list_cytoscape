@@ -13,6 +13,7 @@ class TablePanel {
         this.sortColumn = null;
         this.sortDirection = 'asc';
         this.filters = {}; // { columnName: filterValue }
+        this.globalSearchValue = ''; // グローバル検索値
         this.isPopout = false;
         this.popoutWindow = null;
         this.resizing = false;
@@ -65,7 +66,7 @@ class TablePanel {
     }
 
     /**
-     * パネルを作成
+     * パネルを作成 - Desktop版 UI風
      */
     createPanel() {
         // コンテナを作成
@@ -75,38 +76,57 @@ class TablePanel {
         this.panel.innerHTML = `
             <div class="table-panel-resizer" id="table-panel-resizer"></div>
             <div class="table-panel-header">
-                <span class="table-panel-title">Table Data</span>
-                <div class="table-panel-tabs">
-                    <button class="table-tab active" data-tab="nodes">Nodes</button>
-                    <button class="table-tab" data-tab="edges">Edges</button>
-                </div>
-                <div class="table-panel-actions">
-                    <button class="table-action-btn" id="table-columns-btn" title="カラム表示設定">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                        </svg>
-                    </button>
-                    <button class="table-action-btn" id="table-clear-filter-btn" title="フィルターをクリア">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                            <line x1="4" y1="21" x2="20" y2="5"></line>
-                        </svg>
-                    </button>
-                    <button class="table-action-btn" id="table-popout-btn" title="ポップアウト">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                            <polyline points="15 3 21 3 21 9"></polyline>
-                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                    </button>
-                    <button class="table-action-btn" id="table-collapse-btn" title="折りたたむ">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
+                <div class="table-panel-toolbar">
+                    <div class="table-panel-title">
+                        <span class="table-tab-icon">●</span> Node Table
+                    </div>
+                    <div class="table-panel-tabs">
+                        <button class="table-tab active" data-tab="nodes">
+                            <span class="table-tab-icon">●</span>
+                            Node Table
+                        </button>
+                        <button class="table-tab" data-tab="edges">
+                            <span class="table-tab-icon">─</span>
+                            Edge Table
+                        </button>
+                    </div>
+                    <div class="table-panel-search">
+                        <input type="text" id="table-global-search" class="table-search-input" placeholder="🔍 Search table...">
+                    </div>
+                    <div class="table-panel-actions">
+                        <button class="table-action-btn" id="table-show-selected-btn" title="Show selected only">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 11 12 14 22 4"></polyline>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                            </svg>
+                        </button>
+                        <button class="table-action-btn" id="table-columns-btn" title="Select columns">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                            </svg>
+                        </button>
+                        <button class="table-action-btn" id="table-clear-filter-btn" title="Clear all filters">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                                <line x1="4" y1="21" x2="20" y2="5"></line>
+                            </svg>
+                        </button>
+                        <button class="table-action-btn" id="table-popout-btn" title="Pop out">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                        </button>
+                        <button class="table-action-btn" id="table-collapse-btn" title="最小化">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="table-panel-body">
@@ -118,8 +138,13 @@ class TablePanel {
                 </div>
             </div>
             <div class="table-panel-footer">
-                <span id="table-row-count">0 件</span>
-                <span id="table-selected-count"></span>
+                <div class="table-footer-left">
+                    <span id="table-row-count">0 rows</span>
+                    <span id="table-selected-count"></span>
+                </div>
+                <div class="table-footer-right">
+                    <span id="table-column-count">0 columns</span>
+                </div>
             </div>
         `;
         
@@ -128,11 +153,11 @@ class TablePanel {
         columnDropdown.id = 'column-dropdown';
         columnDropdown.className = 'column-dropdown';
         columnDropdown.innerHTML = `
-            <div class="column-dropdown-header">表示カラム</div>
+            <div class="column-dropdown-header">Select Columns to Display</div>
             <div class="column-dropdown-body" id="column-dropdown-body"></div>
             <div class="column-dropdown-footer">
-                <button class="btn-small" id="column-select-all">すべて選択</button>
-                <button class="btn-small" id="column-select-none">すべて解除</button>
+                <button class="btn-small" id="column-select-all">Select All</button>
+                <button class="btn-small" id="column-select-none">Deselect All</button>
             </div>
         `;
         this.panel.appendChild(columnDropdown);
@@ -144,11 +169,27 @@ class TablePanel {
      * イベントリスナーを設定
      */
     setupEventListeners() {
-        // タブ切り替え
+        // タブ切り替え（タブボタンまたはその子要素がクリックされた場合）
         this.panel.querySelectorAll('.table-tab').forEach(tab => {
             tab.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
+                const tabBtn = e.target.closest('.table-tab');
+                if (tabBtn && tabBtn.dataset.tab) {
+                    this.switchTab(tabBtn.dataset.tab);
+                }
             });
+        });
+
+        // グローバル検索
+        document.getElementById('table-global-search').addEventListener('input', (e) => {
+            this.globalSearchValue = e.target.value;
+            this.renderTable();
+        });
+
+        // 選択のみ表示ボタン
+        document.getElementById('table-show-selected-btn').addEventListener('click', () => {
+            this.showSelectedOnly = !this.showSelectedOnly;
+            document.getElementById('table-show-selected-btn').classList.toggle('active', this.showSelectedOnly);
+            this.renderTable();
         });
 
         // カラム設定ボタン
@@ -442,7 +483,7 @@ class TablePanel {
     }
 
     /**
-     * テーブルを描画
+     * テーブルを描画 - Desktop版 UI風
      */
     renderTable() {
         if (!window.networkManager || !networkManager.cy) return;
@@ -461,8 +502,10 @@ class TablePanel {
         const filterRow = document.createElement('tr');
         filterRow.className = 'filter-row';
 
+        let visibleColumnCount = 0;
         columns.forEach(col => {
             if (!visibleColumns.has(col)) return;
+            visibleColumnCount++;
 
             // ヘッダーセル
             const th = document.createElement('th');
@@ -475,8 +518,12 @@ class TablePanel {
                 th.style.minWidth = savedWidth + 'px';
             }
             
+            // データ型を検出
+            const dataType = this.detectColumnType(col, elements);
+            
             th.innerHTML = `
                 <div class="th-content">
+                    <span class="th-type-icon" title="${dataType}">${this.getTypeIcon(dataType)}</span>
                     <span class="th-label">${col}</span>
                     <span class="sort-icon">${this.getSortIcon(col)}</span>
                 </div>
@@ -509,7 +556,7 @@ class TablePanel {
             const filterInput = document.createElement('input');
             filterInput.type = 'text';
             filterInput.className = 'filter-input';
-            filterInput.placeholder = 'フィルター...';
+            filterInput.placeholder = 'Filter...';
             filterInput.value = this.filters[col] || '';
             filterInput.addEventListener('input', (e) => {
                 this.setFilter(col, e.target.value);
@@ -535,7 +582,19 @@ class TablePanel {
             data = data.filter(row => row._element.selected());
         }
 
-        // フィルター適用
+        // グローバル検索フィルタ適用
+        if (this.globalSearchValue) {
+            const searchLower = this.globalSearchValue.toLowerCase();
+            data = data.filter(row => {
+                return columns.some(col => {
+                    const val = row[col];
+                    if (val === undefined || val === null) return false;
+                    return String(val).toLowerCase().includes(searchLower);
+                });
+            });
+        }
+
+        // カラムフィルター適用
         data = this.applyFilters(data, columns);
 
         // ソート適用
@@ -592,10 +651,54 @@ class TablePanel {
         });
 
         // 件数表示
-        document.getElementById('table-row-count').textContent = `${data.length} 件`;
+        document.getElementById('table-row-count').textContent = `${data.length} rows`;
+        document.getElementById('table-column-count').textContent = `${visibleColumnCount} columns`;
 
         // ネットワーク図でフィルター結果をハイライト
         this.highlightFilteredElements(data);
+    }
+
+    /**
+     * カラムのデータ型を検出
+     */
+    detectColumnType(column, elements) {
+        let hasNumber = false;
+        let hasString = false;
+        let hasArray = false;
+        let hasBool = false;
+        
+        const sampleSize = Math.min(50, elements.length);
+        for (let i = 0; i < sampleSize; i++) {
+            const val = elements[i].data(column);
+            if (val === undefined || val === null || val === '') continue;
+            
+            if (Array.isArray(val)) {
+                hasArray = true;
+            } else if (typeof val === 'boolean') {
+                hasBool = true;
+            } else if (typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val))) {
+                hasNumber = true;
+            } else {
+                hasString = true;
+            }
+        }
+        
+        if (hasArray) return 'list';
+        if (hasBool) return 'boolean';
+        if (hasNumber && !hasString) return 'number';
+        return 'string';
+    }
+
+    /**
+     * データ型アイコンを取得
+     */
+    getTypeIcon(dataType) {
+        switch (dataType) {
+            case 'number': return '123';
+            case 'boolean': return '✓/✗';
+            case 'list': return '[ ]';
+            default: return 'Aa';
+        }
     }
 
     /**
@@ -942,33 +1045,42 @@ class TablePanel {
                 <title>Table Data - Network Visualizer</title>
                 <link rel="stylesheet" href="css/style.css">
                 <style>
-                    body { padding: 0; margin: 0; overflow: hidden; }
+                    html, body { 
+                        height: 100%; 
+                        padding: 0; 
+                        margin: 0; 
+                        overflow: hidden; 
+                    }
                     .table-panel { 
-                        position: static; 
-                        height: 100vh; 
-                        display: flex;
+                        position: absolute !important;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        height: 100% !important;
+                        display: flex !important;
                         flex-direction: column;
                     }
                     .table-panel-resizer { display: none; }
                     #table-popout-btn svg { transform: rotate(180deg); }
-                    .table-panel-content {
-                        flex: 1;
-                        overflow: hidden;
-                        display: flex;
-                        flex-direction: column;
+                    .table-panel-header {
+                        flex-shrink: 0;
                     }
                     .table-panel-body {
-                        flex: 1;
-                        display: flex;
+                        flex: 1 1 0 !important;
+                        display: flex !important;
                         flex-direction: column;
                         overflow: hidden;
-                        min-height: 0;
+                        min-height: 0 !important;
                     }
                     .table-container {
-                        flex: 1;
-                        overflow: auto;
+                        flex: 1 1 0 !important;
+                        overflow: auto !important;
                         max-height: none !important;
-                        min-height: 0;
+                        min-height: 0 !important;
+                    }
+                    .table-panel-footer {
+                        flex-shrink: 0;
                     }
                     /* ポップアウトウィンドウ用のカラムドロップダウン */
                     .column-dropdown {
@@ -1048,11 +1160,31 @@ class TablePanel {
         // パネルをポップアウトウィンドウに移動
         const panelClone = this.panel.cloneNode(true);
         panelClone.classList.add('active');
+        panelClone.classList.remove('collapsed');
+        
+        // ポップアウトウィンドウでは高さを100vhに設定（インラインスタイルをクリア）
+        panelClone.style.height = '100vh';
+        panelClone.style.position = 'static';
         
         // ポップアウトウィンドウでは折りたたみボタンを非表示
         const collapseBtn = panelClone.querySelector('#table-collapse-btn');
         if (collapseBtn) {
             collapseBtn.style.display = 'none';
+        }
+        
+        // table-panel-bodyとtable-containerの高さ制限を解除
+        const tableBody = panelClone.querySelector('.table-panel-body');
+        if (tableBody) {
+            tableBody.style.flex = '1';
+            tableBody.style.minHeight = '0';
+            tableBody.style.overflow = 'hidden';
+        }
+        const tableContainer = panelClone.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.style.flex = '1';
+            tableContainer.style.maxHeight = 'none';
+            tableContainer.style.minHeight = '0';
+            tableContainer.style.overflow = 'auto';
         }
         
         doc.body.appendChild(panelClone);
@@ -1384,30 +1516,36 @@ class TablePanel {
     }
 
     /**
-     * 折りたたみを切り替え（ヘッダー行を残してパネルを折りたたむ）
+     * 最小化/最大化を切り替え
      */
     toggleCollapse() {
         const isCollapsed = this.panel.classList.toggle('collapsed');
         const btn = document.getElementById('table-collapse-btn');
+        const title = this.panel.querySelector('.table-panel-title');
         
         if (isCollapsed) {
-            // 折りたたみ時：ヘッダー行（36px）だけ残す
-            this.panel.style.height = '36px';
+            // 最小化時：ヘッダー行（40px）だけ残す
+            this.panel.style.height = '40px';
+            // タイトルに現在のタブ情報を表示
+            const currentTabName = this.currentTab === 'nodes' ? 'Node Table' : 'Edge Table';
+            title.innerHTML = `<span class="table-tab-icon">${this.currentTab === 'nodes' ? '●' : '─'}</span> ${currentTabName}`;
+            // ボタンを最大化アイコンに変更
             btn.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="18 15 12 9 6 15"></polyline>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 </svg>
             `;
-            btn.title = '展開する';
+            btn.title = '最大化';
         } else {
-            // 展開時：元の高さに戻す
+            // 最大化時：元の高さに戻す
             this.panel.style.height = this.panelHeight + 'px';
+            // ボタンを最小化アイコンに変更
             btn.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9"></polyline>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
             `;
-            btn.title = '折りたたむ';
+            btn.title = '最小化';
         }
         this.updateCyHeight();
     }
