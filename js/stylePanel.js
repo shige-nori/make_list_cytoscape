@@ -62,7 +62,7 @@ class StylePanel {
             nodeStyles['color'] = StylePanel.getStaticMappedColorValue(node, 'labelColor', nodeSettings.labelColor, nodeSettings.mappings, 'node');
             
             // Fill Color
-            nodeStyles['background-color'] = StylePanel.getStaticMappedColorValue(node, 'fillColor', nodeSettings.fillColor, nodeSettings.mappings, 'node');
+            const baseFillColor = StylePanel.getStaticMappedColorValue(node, 'fillColor', nodeSettings.fillColor, nodeSettings.mappings, 'node');
             
             // Shape
             nodeStyles['shape'] = StylePanel.getStaticMappedValue(node, 'shape', nodeSettings.shape, nodeSettings.mappings, 'node');
@@ -71,6 +71,19 @@ class StylePanel {
             const nodeSize = StylePanel.getStaticMappedValue(node, 'size', nodeSettings.size, nodeSettings.mappings, 'node');
             nodeStyles['width'] = nodeSize + 'px';
             nodeStyles['height'] = nodeSize + 'px';
+            
+            // ホバー状態を確認
+            if (node.hasClass('hover-highlighted')) {
+                nodeStyles['background-color'] = '#ff1493';
+                nodeStyles['border-color'] = '#ff1493';
+                nodeStyles['opacity'] = 1;
+            } else if (node.hasClass('hover-dimmed')) {
+                nodeStyles['background-color'] = baseFillColor;
+                nodeStyles['opacity'] = 0.5;
+            } else {
+                nodeStyles['background-color'] = baseFillColor;
+                nodeStyles['opacity'] = 1;
+            }
             
             node.style(nodeStyles);
         });
@@ -93,9 +106,22 @@ class StylePanel {
             edgeStyles['width'] = width + 'px';
             
             // Line Color
-            const lineColor = StylePanel.getStaticMappedColorValue(edge, 'lineColor', edgeSettings.lineColor, edgeSettings.mappings, 'edge');
-            edgeStyles['line-color'] = lineColor;
-            edgeStyles['target-arrow-color'] = lineColor;
+            const baseLineColor = StylePanel.getStaticMappedColorValue(edge, 'lineColor', edgeSettings.lineColor, edgeSettings.mappings, 'edge');
+            
+            // ホバー状態を確認
+            if (edge.hasClass('hover-highlighted')) {
+                edgeStyles['line-color'] = '#ff1493';
+                edgeStyles['target-arrow-color'] = '#ff1493';
+                edgeStyles['opacity'] = 1;
+            } else if (edge.hasClass('hover-dimmed')) {
+                edgeStyles['line-color'] = baseLineColor;
+                edgeStyles['target-arrow-color'] = baseLineColor;
+                edgeStyles['opacity'] = 0.5;
+            } else {
+                edgeStyles['line-color'] = baseLineColor;
+                edgeStyles['target-arrow-color'] = baseLineColor;
+                edgeStyles['opacity'] = 1;
+            }
             
             edge.style(edgeStyles);
         });
@@ -806,6 +832,15 @@ class StylePanel {
             ? StylePanel.savedSettings.node.mappings 
             : StylePanel.savedSettings.edge.mappings;
         const mapping = mappings[property] || { values: {} };
+        
+        // マッピングを有効化
+        if (!mappings[property]) {
+            mappings[property] = { active: true, column, type, values: {} };
+        } else {
+            mappings[property].active = true;
+            mappings[property].column = column;
+            mappings[property].type = type;
+        }
 
         detailsDiv.style.display = 'block';
         
@@ -816,6 +851,13 @@ class StylePanel {
             detailsDiv.innerHTML = this.createContinuousUI(property, valueType, minVal, maxVal, mapping, elementType);
             this.setupContinuousEventHandlers(elementType, property, valueType, minVal, maxVal);
         }
+        
+        // 即座にスタイルを適用
+        if (elementType === 'node') {
+            this.applyNodeStyle();
+        } else {
+            this.applyEdgeStyle();
+        }
     }
 
     /**
@@ -825,27 +867,46 @@ class StylePanel {
         const prefix = elementType === 'edge' ? 'edge-' : '';
         let html = '<div class="discrete-mapping-list">';
         
+        // デフォルト値を取得
+        const settings = elementType === 'node' 
+            ? StylePanel.savedSettings.node 
+            : StylePanel.savedSettings.edge;
+        let defaultValue;
+        if (valueType === 'color') {
+            defaultValue = settings[property] || '#2563eb';
+        } else if (valueType === 'number') {
+            defaultValue = settings[property] || '10';
+        } else {
+            defaultValue = settings[property] || '';
+        }
+        
         uniqueValues.forEach((val, idx) => {
-            const savedValue = mapping.values?.[val] || '';
+            const savedValue = mapping.values?.[val];
+            const displayValue = savedValue !== undefined ? savedValue : defaultValue;
+            // 初期値を保存
+            if (savedValue === undefined) {
+                if (!mapping.values) mapping.values = {};
+                mapping.values[val] = displayValue;
+            }
             const inputId = `${prefix}${property}-discrete-${idx}`;
             
             if (valueType === 'color') {
                 html += `
                     <div class="discrete-mapping-item">
                         <span class="discrete-value">${val}</span>
-                        <input type="color" id="${inputId}" value="${savedValue || '#2563eb'}" data-key="${val}">
+                        <input type="color" id="${inputId}" value="${displayValue}" data-key="${val}">
                     </div>`;
             } else if (valueType === 'number') {
                 html += `
                     <div class="discrete-mapping-item">
                         <span class="discrete-value">${val}</span>
-                        <input type="number" id="${inputId}" value="${savedValue || '10'}" data-key="${val}" min="1" max="200">
+                        <input type="number" id="${inputId}" value="${displayValue}" data-key="${val}" min="1" max="200">
                     </div>`;
             } else {
                 html += `
                     <div class="discrete-mapping-item">
                         <span class="discrete-value">${val}</span>
-                        <input type="text" id="${inputId}" value="${savedValue || ''}" data-key="${val}">
+                        <input type="text" id="${inputId}" value="${displayValue}" data-key="${val}">
                     </div>`;
             }
         });
@@ -863,6 +924,10 @@ class StylePanel {
         if (valueType === 'color') {
             const minColor = mapping.gradientColors?.min || '#ffffff';
             const maxColor = mapping.gradientColors?.max || '#2563eb';
+            // 初期値を保存
+            if (!mapping.gradientColors) {
+                mapping.gradientColors = { min: minColor, max: maxColor };
+            }
             return `
                 <div class="continuous-mapping-gradient">
                     <div class="gradient-endpoint">
@@ -879,6 +944,10 @@ class StylePanel {
         } else {
             const minSize = mapping.continuousRange?.min || 10;
             const maxSize = mapping.continuousRange?.max || 100;
+            // 初期値を保存
+            if (!mapping.continuousRange) {
+                mapping.continuousRange = { min: minSize, max: maxSize, dataMin: minVal, dataMax: maxVal };
+            }
             return `
                 <div class="continuous-mapping-range">
                     <div class="range-endpoint">
@@ -2160,7 +2229,21 @@ class StylePanel {
             nodeStyles['border-color'] = this.getMappedColorValue(node, 'borderColor', borderColor, mappings);
             
             // Opacity
-            nodeStyles['opacity'] = this.getMappedValue(node, 'opacity', opacity, mappings);
+            const baseOpacity = this.getMappedValue(node, 'opacity', opacity, mappings);
+            
+            // ホバー状態を確認して、ホバー用のスタイルを適用
+            if (node.hasClass('hover-highlighted')) {
+                // ホバーハイライト時はピンク色で不透明度1
+                nodeStyles['background-color'] = '#ff1493';
+                nodeStyles['border-color'] = '#ff1493';
+                nodeStyles['opacity'] = 1;
+            } else if (node.hasClass('hover-dimmed')) {
+                // ホバー時の非ハイライト要素は透明度0.5
+                nodeStyles['opacity'] = 0.5;
+            } else {
+                // 通常時
+                nodeStyles['opacity'] = baseOpacity;
+            }
             
             node.style(nodeStyles);
         });
@@ -2201,7 +2284,13 @@ class StylePanel {
             if (!isNaN(numValue)) {
                 const { min, max } = this.getNumericRange(mapping.column);
                 const ratio = (max !== min) ? (numValue - min) / (max - min) : 0;
-                const { minSize, maxSize } = mapping.continuousRange;
+                // continuousRange のキー名を統一（minSize/maxSize または min/max どちらでも対応）
+                const minSize = mapping.continuousRange.minSize !== undefined 
+                    ? mapping.continuousRange.minSize 
+                    : mapping.continuousRange.min;
+                const maxSize = mapping.continuousRange.maxSize !== undefined 
+                    ? mapping.continuousRange.maxSize 
+                    : mapping.continuousRange.max;
                 const calculatedSize = minSize + (maxSize - minSize) * ratio;
                 // プロパティに応じた丸め処理
                 if (property === 'labelFontSize') {
@@ -2320,7 +2409,24 @@ class StylePanel {
             edgeStyles['curve-style'] = this.getEdgeMappedValue(edge, 'curveStyle', curveStyle, mappings);
             
             // Opacity
-            edgeStyles['opacity'] = this.getEdgeMappedValue(edge, 'opacity', opacity, mappings);
+            const baseOpacity = this.getEdgeMappedValue(edge, 'opacity', opacity, mappings);
+            const baseMappedColor = this.getEdgeMappedColorValue(edge, 'lineColor', lineColor, mappings);
+            
+            // ホバー状態を確認して、ホバー用のスタイルを適用
+            if (edge.hasClass('hover-highlighted')) {
+                // ホバーハイライト時はピンク色で不透明度1
+                edgeStyles['line-color'] = '#ff1493';
+                edgeStyles['target-arrow-color'] = '#ff1493';
+                edgeStyles['opacity'] = 1;
+            } else if (edge.hasClass('hover-dimmed')) {
+                // ホバー時の非ハイライト要素は透明度0.5
+                edgeStyles['opacity'] = 0.5;
+            } else {
+                // 通常時
+                edgeStyles['line-color'] = baseMappedColor;
+                edgeStyles['target-arrow-color'] = baseMappedColor;
+                edgeStyles['opacity'] = baseOpacity;
+            }
             
             edge.style(edgeStyles);
         });
@@ -2360,7 +2466,13 @@ class StylePanel {
             if (!isNaN(numValue)) {
                 const { min, max } = this.getEdgeNumericRange(mapping.column);
                 const ratio = (max !== min) ? (numValue - min) / (max - min) : 0;
-                const { minSize, maxSize } = mapping.continuousRange;
+                // continuousRange のキー名を統一（minSize/maxSize または min/max どちらでも対応）
+                const minSize = mapping.continuousRange.minSize !== undefined 
+                    ? mapping.continuousRange.minSize 
+                    : mapping.continuousRange.min;
+                const maxSize = mapping.continuousRange.maxSize !== undefined 
+                    ? mapping.continuousRange.maxSize 
+                    : mapping.continuousRange.max;
                 const calculatedSize = minSize + (maxSize - minSize) * ratio;
                 return Math.round(calculatedSize * 10) / 10; // 0.1刻み
             }

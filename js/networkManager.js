@@ -29,6 +29,7 @@ class NetworkManager {
             wheelSensitivity: 0.1
         });
 
+        this.setupHoverHighlight();
         this.showEmptyState();
     }
 
@@ -109,6 +110,36 @@ class NetworkManager {
                     'target-arrow-color': '#c2410c',
                     'overlay-color': '#f97316',
                     'overlay-opacity': 0.5
+                }
+            },
+            // ホバーハイライト用スタイル
+            {
+                selector: 'node.hover-highlighted',
+                style: {
+                    'background-color': '#ff1493',
+                    'border-color': '#ff1493',
+                    'opacity': 1
+                }
+            },
+            {
+                selector: 'edge.hover-highlighted',
+                style: {
+                    'line-color': '#ff1493',
+                    'target-arrow-color': '#ff1493',
+                    'opacity': 1
+                }
+            },
+            // ホバー時の非ハイライト要素（透明度50%）
+            {
+                selector: 'node.hover-dimmed',
+                style: {
+                    'opacity': 0.5
+                }
+            },
+            {
+                selector: 'edge.hover-dimmed',
+                style: {
+                    'opacity': 0.5
                 }
             }
         ];
@@ -812,6 +843,55 @@ class NetworkManager {
         if (emptyState) {
             emptyState.remove();
         }
+    }
+
+    /**
+     * ホバーハイライト機能をセットアップ
+     */
+    setupHoverHighlight() {
+        if (!this.cy) return;
+
+        this.cy.on('mouseover', 'node', (evt) => {
+            const node = evt.target;
+            
+            // 大規模ネットワーク（2000要素以上）ではパフォーマンスのため無効化
+            if (this.cy.elements().length > 2000) {
+                return;
+            }
+
+            // 上流・下流パスを取得
+            const predecessors = node.predecessors();
+            const successors = node.successors();
+            
+            // ハイライトする要素（ホバーしたノード + 上流・下流パス）
+            const highlighted = node.union(predecessors).union(successors);
+            
+            // 全要素をdimmed状態に
+            this.cy.elements().addClass('hover-dimmed');
+            
+            // ハイライト要素をdimmedから除外し、highlightedクラスを追加
+            highlighted.removeClass('hover-dimmed').addClass('hover-highlighted');
+            
+            // スタイルを再適用（個別スタイルがクラスベースのスタイルより優先されるため）
+            if (typeof StylePanel !== 'undefined' && StylePanel.applyAllStyles) {
+                StylePanel.applyAllStyles();
+            }
+        });
+
+        this.cy.on('mouseout', 'node', (evt) => {
+            // 大規模ネットワークではパフォーマンスのため無効化
+            if (this.cy.elements().length > 2000) {
+                return;
+            }
+
+            // 全てのホバークラスを削除
+            this.cy.elements().removeClass('hover-highlighted hover-dimmed');
+            
+            // スタイルを再適用（通常のスタイルに戻す）
+            if (typeof StylePanel !== 'undefined' && StylePanel.applyAllStyles) {
+                StylePanel.applyAllStyles();
+            }
+        });
     }
 }
 
